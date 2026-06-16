@@ -17,7 +17,7 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 5, onCreate: _createDB, onUpgrade: _upgradeDB);
+    return await openDatabase(path, version: 8, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -109,6 +109,14 @@ class DatabaseHelper {
         payment_date TEXT NOT NULL,
         payment_type TEXT DEFAULT 'Rent',
         status TEXT DEFAULT 'Paid',
+        payment_method TEXT DEFAULT 'Cash',
+        transaction_id TEXT,
+        mpesa_receipt TEXT,
+        stripe_payment_intent_id TEXT,
+        paid_by TEXT DEFAULT 'tenant',
+        late_fee REAL DEFAULT 0,
+        period_start TEXT,
+        period_end TEXT,
         notes TEXT DEFAULT '',
         created_at TEXT NOT NULL,
         FOREIGN KEY (lease_id) REFERENCES leases (id) ON DELETE CASCADE,
@@ -132,6 +140,27 @@ class DatabaseHelper {
       )
     ''');
     await _createNewTables(db);
+  }
+
+  // Settings (key-value store)
+  Future<String?> getSetting(String key) async {
+    final db = await database;
+    final result = await db.query('settings',
+        where: 'key = ?', whereArgs: [key], limit: 1);
+    if (result.isEmpty) return null;
+    return result.first['value'] as String?;
+  }
+
+  Future<void> setSetting(String key, String value) async {
+    final db = await database;
+    await db.insert('settings', {'key': key, 'value': value},
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<Map<String, String>> getAllSettings() async {
+    final db = await database;
+    final result = await db.query('settings');
+    return {for (var r in result) r['key'] as String: (r['value'] as String?) ?? ''};
   }
 
   Future<int> insert(String table, Map<String, dynamic> values) async {
@@ -328,6 +357,75 @@ class DatabaseHelper {
             "ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1");
       } catch (_) {}
     }
+    if (oldVersion < 8) {
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS vendors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            contact_person TEXT DEFAULT '',
+            email TEXT DEFAULT '',
+            phone TEXT DEFAULT '',
+            category TEXT DEFAULT 'General',
+            address TEXT DEFAULT '',
+            notes TEXT DEFAULT '',
+            hourly_rate REAL,
+            is_active INTEGER DEFAULT 1,
+            created_at TEXT NOT NULL
+          )
+        ''');
+      } catch (_) {}
+    }
+    if (oldVersion < 7) {
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+          )
+        ''');
+        await db.insert('settings', {'key': 'late_fee_type', 'value': 'percentage'});
+        await db.insert('settings', {'key': 'late_fee_value', 'value': '5'});
+        await db.insert('settings', {'key': 'grace_period_days', 'value': '3'});
+        await db.insert('settings', {'key': 'reminder_days_before_due', 'value': '3'});
+        await db.insert('settings', {'key': 'auto_apply_late_fees', 'value': 'false'});
+        await db.insert('settings', {'key': 'default_due_day', 'value': '5'});
+      } catch (_) {}
+    }
+    if (oldVersion < 6) {
+      try {
+        await db.execute(
+            "ALTER TABLE payments ADD COLUMN payment_method TEXT DEFAULT 'Cash'");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE payments ADD COLUMN transaction_id TEXT");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE payments ADD COLUMN mpesa_receipt TEXT");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE payments ADD COLUMN stripe_payment_intent_id TEXT");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE payments ADD COLUMN paid_by TEXT DEFAULT 'tenant'");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE payments ADD COLUMN late_fee REAL DEFAULT 0");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE payments ADD COLUMN period_start TEXT");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE payments ADD COLUMN period_end TEXT");
+      } catch (_) {}
+    }
   }
 
   Future<void> _createNewTables(Database db) async {
@@ -440,6 +538,27 @@ class DatabaseHelper {
         created_at TEXT NOT NULL,
         FOREIGN KEY (owner_id) REFERENCES owners (id) ON DELETE SET NULL,
         FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE SET NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS vendors (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        contact_person TEXT DEFAULT '',
+        email TEXT DEFAULT '',
+        phone TEXT DEFAULT '',
+        category TEXT DEFAULT 'General',
+        address TEXT DEFAULT '',
+        notes TEXT DEFAULT '',
+        hourly_rate REAL,
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT NOT NULL
       )
     ''');
     await db.execute('''

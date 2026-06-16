@@ -3,6 +3,7 @@
   "description": "Cloud Functions for REMS",
   "dependencies": {
     "firebase-admin": "^11.11.0",
-    "firebase-functions": "^4.5.0"
+    "firebase-functions": "^4.5.0",
+    "stripe": "^22.2.1"
   }
 }

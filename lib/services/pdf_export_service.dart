@@ -164,6 +164,383 @@ class PdfExportService {
         'property_${property['name']}_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf');
   }
 
+  Future<void> exportProfitLoss(int year) async {
+    final revenue = await _db.getMonthlyRevenue(year);
+    final expenses = await _db.queryAll('expenses');
+    final currencyFormat = NumberFormat.currency(symbol: 'KSH ');
+    final dateFormat = DateFormat('MMM dd, yyyy');
+
+    final totalRevenue =
+        revenue.fold<double>(0, (s, r) => s + ((r['total'] as num?)?.toDouble() ?? 0));
+    final totalExpenses =
+        expenses.fold<double>(0, (s, e) => s + ((e['amount'] as num?)?.toDouble() ?? 0));
+
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        header: (context) => pw.Header(
+          level: 0,
+          child: pw.Text('Profit & Loss Statement $year',
+              style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+        ),
+        footer: (context) => pw.Text(
+          'Generated ${dateFormat.format(DateTime.now())}',
+          style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey),
+        ),
+        build: (context) => [
+          pw.Header(level: 1, text: 'Income'),
+          revenue.isEmpty
+              ? pw.Paragraph(text: 'No income recorded')
+              : pw.TableHelper.fromTextArray(
+                  headers: ['Month', 'Amount'],
+                  data: revenue.map((r) => [
+                    DateFormat('MMMM').format(DateTime(year, r['month'] as int)),
+                    currencyFormat.format((r['total'] as num?)?.toDouble() ?? 0),
+                  ]).toList(),
+                  headerStyle: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+                  headerDecoration:
+                      const pw.BoxDecoration(color: PdfColors.green800),
+                  cellStyle: const pw.TextStyle(fontSize: 9),
+                ),
+          pw.SizedBox(height: 8),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(8),
+            decoration: const pw.BoxDecoration(color: PdfColors.green50),
+            child: pw.Text('Total Income: ${currencyFormat.format(totalRevenue)}',
+                style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold, color: PdfColors.green800)),
+          ),
+          pw.SizedBox(height: 24),
+          pw.Header(level: 1, text: 'Expenses'),
+          expenses.isEmpty
+              ? pw.Paragraph(text: 'No expenses recorded')
+              : pw.TableHelper.fromTextArray(
+                  headers: ['Title', 'Category', 'Amount', 'Date'],
+                  data: expenses.map((e) => [
+                    e['title'] as String? ?? '',
+                    e['category'] as String? ?? '',
+                    currencyFormat.format((e['amount'] as num?)?.toDouble() ?? 0),
+                    dateFormat.format(DateTime.parse(e['expense_date'] as String)),
+                  ]).toList(),
+                  headerStyle: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+                  headerDecoration:
+                      const pw.BoxDecoration(color: PdfColors.red800),
+                  cellStyle: const pw.TextStyle(fontSize: 9),
+                ),
+          pw.SizedBox(height: 8),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(8),
+            decoration: const pw.BoxDecoration(color: PdfColors.red50),
+            child: pw.Text('Total Expenses: ${currencyFormat.format(totalExpenses)}',
+                style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold, color: PdfColors.red800)),
+          ),
+          pw.Divider(),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.blue50,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+            ),
+            child: pw.Text(
+              'Net Profit/Loss: ${currencyFormat.format(totalRevenue - totalExpenses)}',
+              style: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  fontSize: 14,
+                  color: totalRevenue >= totalExpenses
+                      ? PdfColors.green800
+                      : PdfColors.red800),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    await _saveAndShare(pdf,
+        'pnl_$year.pdf');
+  }
+
+  Future<void> exportCashFlow(int year) async {
+    final revenue = await _db.getMonthlyRevenue(year);
+    final expenses = await _db.queryAll('expenses');
+    final currencyFormat = NumberFormat.currency(symbol: 'KSH ');
+    final dateFormat = DateFormat('MMM yyyy');
+
+    final monthlyCashFlow = <Map<String, dynamic>>[];
+    for (int m = 1; m <= 12; m++) {
+      final rev = revenue.where((r) => r['month'] == m).fold<double>(
+          0, (s, r) => s + ((r['total'] as num?)?.toDouble() ?? 0));
+      final exp = expenses
+          .where((e) {
+            try {
+              return DateTime.parse(e['expense_date'] as String).month == m &&
+                  DateTime.parse(e['expense_date'] as String).year == year;
+            } catch (_) {
+              return false;
+            }
+          })
+          .fold<double>(
+              0, (s, e) => s + ((e['amount'] as num?)?.toDouble() ?? 0));
+      monthlyCashFlow.add({
+        'month': DateFormat('MMMM').format(DateTime(year, m)),
+        'revenue': rev,
+        'expenses': exp,
+        'net': rev - exp,
+      });
+    }
+
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        header: (context) => pw.Header(
+          level: 0,
+          child: pw.Text('Cash Flow Statement $year',
+              style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+        ),
+        build: (context) => [
+          pw.TableHelper.fromTextArray(
+            headers: ['Month', 'Revenue', 'Expenses', 'Net Cash Flow'],
+            data: monthlyCashFlow.map((m) => [
+              m['month'],
+              currencyFormat.format(m['revenue']),
+              currencyFormat.format(m['expenses']),
+              currencyFormat.format(m['net']),
+            ]).toList(),
+            headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+            headerDecoration:
+                const pw.BoxDecoration(color: PdfColors.blue800),
+            cellStyle: const pw.TextStyle(fontSize: 9),
+          ),
+          pw.SizedBox(height: 16),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.blue50,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('Annual Summary',
+                    style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                pw.SizedBox(height: 4),
+                pw.Text(
+                    'Total Revenue: ${currencyFormat.format(monthlyCashFlow.fold<double>(0, (s, m) => s + (m['revenue'] as double)))}'),
+                pw.Text(
+                    'Total Expenses: ${currencyFormat.format(monthlyCashFlow.fold<double>(0, (s, m) => s + (m['expenses'] as double)))}'),
+                pw.Text(
+                    'Net Cash Flow: ${currencyFormat.format(monthlyCashFlow.fold<double>(0, (s, m) => s + (m['net'] as double)))}'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    await _saveAndShare(pdf, 'cash_flow_$year.pdf');
+  }
+
+  Future<void> exportScheduleE(int year) async {
+    final properties = await _db.queryAll('properties');
+    final currencyFormat = NumberFormat.currency(symbol: 'KSH ');
+    final dateFormat = DateFormat('MMM dd, yyyy');
+
+    // Pre-fetch all data for each property
+    final propertyData = <Map<String, dynamic>>[];
+    for (final prop in properties) {
+      final pid = prop['id'] as int;
+      final rentCollected = await _getPropertyRentCollected(pid, year);
+      final totalExpenses = await _getPropertyTotalExpenses(pid, year);
+      final expenseCategories = <Map<String, dynamic>>[];
+      for (final cat in ['Repairs', 'Maintenance', 'Utilities',
+          'Insurance', 'Property Management', 'Cleaning',
+          'Supplies', 'Advertising', 'Legal', 'Other']) {
+        expenseCategories.add({
+          'category': cat,
+          'total': await _getPropertyExpenseByCategory(pid, cat, year),
+        });
+      }
+      propertyData.add({
+        'name': prop['name'] as String? ?? 'Property',
+        'address': prop['address'] as String? ?? '',
+        'city': prop['city'] as String? ?? '',
+        'state': prop['state'] as String? ?? '',
+        'rentCollected': rentCollected,
+        'totalExpenses': totalExpenses,
+        'expenseCategories': expenseCategories,
+      });
+    }
+
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        header: (context) => pw.Header(
+          level: 0,
+          child: pw.Text('Schedule E - Supplemental Income & Loss',
+              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+        ),
+        build: (context) => [
+          pw.Text('For calendar year $year',
+              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+          for (final prop in propertyData) ...[
+            pw.Header(
+              level: 1,
+              text: prop['name'] as String,
+            ),
+            pw.Paragraph(
+                text:
+                    'Address: ${prop['address']}, ${prop['city']}, ${prop['state']}'),
+            pw.SizedBox(height: 8),
+            _buildScheduleESection(
+              'Rental Income',
+              [
+                _scheduleERow('Rent Collected', prop['rentCollected'] as double),
+                _scheduleERow('Total Rental Income', prop['rentCollected'] as double),
+              ],
+              currencyFormat,
+            ),
+            pw.SizedBox(height: 8),
+            _buildScheduleESection(
+              'Expenses',
+              (prop['expenseCategories'] as List<Map<String, dynamic>>).map((ec) =>
+                _scheduleERow(ec['category'] as String, ec['total'] as double)
+              ).toList(),
+              currencyFormat,
+            ),
+            pw.Divider(),
+            _buildScheduleETotal(
+              'Net Rental Income/Loss',
+              (prop['rentCollected'] as double) - (prop['totalExpenses'] as double),
+              currencyFormat,
+            ),
+            pw.SizedBox(height: 24),
+          ],
+          pw.Header(level: 1, text: 'Summary'),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.blue50,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('Total Properties: ${properties.length}',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                pw.Text(
+                    'Generated: ${dateFormat.format(DateTime.now())}'),
+                pw.Text(
+                    'This is a simulated Schedule E for management purposes. '
+                    'Consult your tax professional for official filings.',
+                    style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    await _saveAndShare(pdf, 'schedule_e_$year.pdf');
+  }
+
+  pw.Widget _buildScheduleESection(
+      String title, List<pw.Widget> rows, NumberFormat fmt) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 4),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(title,
+              style: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold, fontSize: 11)),
+          ...rows,
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _scheduleERow(String label, double amount) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(label, style: const pw.TextStyle(fontSize: 9)),
+        pw.Text(NumberFormat.currency(symbol: 'KSH ').format(amount),
+            style: const pw.TextStyle(fontSize: 9)),
+      ],
+    );
+  }
+
+  pw.Widget _buildScheduleETotal(String label, double amount, NumberFormat fmt) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(8),
+      decoration: pw.BoxDecoration(
+        color: amount >= 0 ? PdfColors.green50 : PdfColors.red50,
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+      ),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(label,
+              style: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
+          pw.Text(fmt.format(amount),
+              style: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  color: amount >= 0 ? PdfColors.green800 : PdfColors.red800)),
+        ],
+      ),
+    );
+  }
+
+  Future<double> _getPropertyRentCollected(int propertyId, int year) async {
+    final db = await _db.database;
+    final result = await db.rawQuery('''
+      SELECT COALESCE(SUM(p.amount), 0) as total
+      FROM payments p
+      JOIN leases l ON p.lease_id = l.id
+      JOIN units u ON l.unit_id = u.id
+      WHERE u.property_id = ? AND p.status = 'Paid'
+      AND strftime('%Y', p.payment_date) = ?
+    ''', [propertyId, year.toString()]);
+    return (result.first['total'] as num?)?.toDouble() ?? 0;
+  }
+
+  Future<double> _getPropertyExpenseByCategory(
+      int propertyId, String category, int year) async {
+    final db = await _db.database;
+    final result = await db.rawQuery('''
+      SELECT COALESCE(SUM(amount), 0) as total
+      FROM expenses
+      WHERE property_id = ? AND category = ?
+      AND strftime('%Y', expense_date) = ?
+    ''', [propertyId, category, year.toString()]);
+    return (result.first['total'] as num?)?.toDouble() ?? 0;
+  }
+
+  Future<double> _getPropertyTotalExpenses(int propertyId, int year) async {
+    final db = await _db.database;
+    final result = await db.rawQuery('''
+      SELECT COALESCE(SUM(amount), 0) as total
+      FROM expenses
+      WHERE property_id = ?
+      AND strftime('%Y', expense_date) = ?
+    ''', [propertyId, year.toString()]);
+    return (result.first['total'] as num?)?.toDouble() ?? 0;
+  }
+
   Future<void> exportMaintenanceReport() async {
     final requests = await _db.queryAll('maintenance_requests');
     final pdf = pw.Document();
@@ -240,11 +617,39 @@ class PdfExportService {
     );
   }
 
+  Future<void> exportQuickBooksCSV(int year) async {
+    final payments = await _db.queryAll('payments');
+    final currencyFormat = NumberFormat.currency(symbol: 'KSH ', decimalDigits: 0);
+
+    final buffer = StringBuffer();
+    buffer.writeln('Date,Name,Description,Amount,Type,Status');
+    for (final p in payments) {
+      final date = p['payment_date'] as String? ?? '';
+      final name = 'Tenant #${p['tenant_id']}';
+      final desc = p['payment_type'] as String? ?? 'Rent';
+      final amount = currencyFormat.format((p['amount'] as num?)?.toDouble() ?? 0);
+      final type = p['payment_method'] as String? ?? 'Cash';
+      final status = p['status'] as String? ?? 'Paid';
+      buffer.writeln('$date,$name,$desc,$amount,$type,$status');
+    }
+
+    final bytes = Uint8List.fromList(buffer.toString().codeUnits);
+    await _saveAndShareBytes(bytes, 'quickbooks_$year.csv');
+  }
+
   Future<String> _saveToFile(Uint8List bytes, String filename) async {
     final dir = await getApplicationDocumentsDirectory();
     final file = File('${dir.path}/$filename');
     await file.writeAsBytes(bytes);
     return file.path;
+  }
+
+  Future<void> _saveAndShareBytes(Uint8List bytes, String filename) async {
+    final path = await _saveToFile(bytes, filename);
+    await Share.shareXFiles(
+      [XFile(path)],
+      subject: filename,
+    );
   }
 
   Future<void> _saveAndShare(pw.Document pdf, String filename) async {

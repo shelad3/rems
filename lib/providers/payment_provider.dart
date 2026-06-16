@@ -34,13 +34,18 @@ class PaymentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<int> addPayment(Payment payment) async {
+  Future<int> addPayment(Payment payment,
+      {String? checkoutRequestId}) async {
     final id = await _db.insert('payments', payment.toMap());
     try {
-      await _firestore.db.collection('payments').add({
+      final firestoreData = {
         ...payment.toFirestoreMap(),
         'createdAt': DateTime.now().toIso8601String(),
-      });
+      };
+      if (checkoutRequestId != null) {
+        firestoreData['checkoutRequestId'] = checkoutRequestId;
+      }
+      await _firestore.db.collection('payments').add(firestoreData);
     } catch (e) {
       debugPrint('Firestore addPayment error: $e');
     }

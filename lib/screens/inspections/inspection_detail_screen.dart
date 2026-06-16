@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -37,6 +38,12 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
       );
     }
 
+    final typeColor = inspection.type == 'Move-in'
+        ? Colors.green
+        : inspection.type == 'Move-out'
+            ? Colors.orange
+            : Colors.blue;
+
     return Scaffold(
       appBar: AppBar(title: Text(inspection.title)),
       body: ListView(
@@ -48,14 +55,26 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(inspection.title,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  Row(
+                    children: [
+                      Chip(
+                        label: Text(inspection.type,
+                            style: TextStyle(
+                                fontSize: 12, color: typeColor)),
+                        backgroundColor: typeColor.withValues(alpha: 0.1),
+                        side: BorderSide.none,
+                      ),
+                      const SizedBox(width: 8),
+                      Chip(
+                        label: Text(inspection.overallCondition,
+                            style: const TextStyle(fontSize: 12)),
+                        backgroundColor: _conditionColor(inspection.overallCondition)
+                            .withValues(alpha: 0.1),
+                        side: BorderSide.none,
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
-                  _row('Type', inspection.type),
-                  _row('Condition', inspection.overallCondition),
                   _row('Date',
                       DateFormat.yMMMd().format(inspection.inspectionDate)),
                   if (inspection.notes.isNotEmpty)
@@ -87,14 +106,54 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
                           color: _conditionColor(item.condition), size: 18),
                     ),
                     title: Text(item.roomName),
-                    subtitle: Text(
-                        '${item.category} \u2022 ${item.condition}'),
+                    subtitle: Text('${item.category} \u2022 ${item.condition}'),
                     trailing: item.photoPath != null
-                        ? const Icon(Icons.image, size: 18)
+                        ? Icon(Icons.image, size: 18, color: Colors.blue)
+                        : null,
+                    onTap: item.photoPath != null
+                        ? () => _showPhoto(context, item.photoPath!)
                         : null,
                   ),
                 )),
         ],
+      ),
+    );
+  }
+
+  void _showPhoto(BuildContext context, String path) {
+    final file = File(path);
+    if (!file.existsSync()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Photo file not found')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(file, fit: BoxFit.contain),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: CircleAvatar(
+                backgroundColor: Colors.black.withValues(alpha: 0.5),
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

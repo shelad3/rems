@@ -17,6 +17,7 @@ import 'providers/expense_provider.dart';
 import 'providers/approval_provider.dart';
 import 'providers/communication_provider.dart';
 import 'providers/task_provider.dart';
+import 'providers/vendor_provider.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 import 'services/push_service.dart';
@@ -34,6 +35,7 @@ import 'screens/properties/property_list_screen.dart';
 import 'screens/tenants/tenant_list_screen.dart';
 import 'screens/leases/lease_list_screen.dart';
 import 'screens/payments/payment_list_screen.dart';
+import 'screens/settings/late_fee_settings_screen.dart';
 import 'screens/maintenance/maintenance_list_screen.dart';
 import 'screens/owners/owner_list_screen.dart';
 import 'screens/properties/add_edit_property_screen.dart';
@@ -42,11 +44,16 @@ import 'screens/leases/add_edit_lease_screen.dart';
 import 'screens/documents/document_list_screen.dart';
 import 'screens/inspections/inspection_list_screen.dart';
 import 'screens/expenses/expense_list_screen.dart';
+import 'screens/reports/reports_screen.dart';
 import 'screens/approvals/approval_list_screen.dart';
 import 'screens/communications/communication_list_screen.dart';
 import 'screens/tasks/task_list_screen.dart';
+import 'screens/vendors/vendor_list_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/landlord/staff_screen.dart';
+import 'screens/tenants/screening_screen.dart';
+import 'screens/listings/listing_generator_screen.dart';
+import 'screens/listings/listing_list_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -80,6 +87,7 @@ class RealEstateManagementApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ApprovalProvider()),
         ChangeNotifierProvider(create: (_) => CommunicationProvider()),
         ChangeNotifierProvider(create: (_) => TaskProvider()),
+        ChangeNotifierProvider(create: (_) => VendorProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
@@ -167,6 +175,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     const PropertyListScreen(),
     const TenantListScreen(),
     const LeaseListScreen(),
+    const ProfileScreen(),
   ];
 
   @override
@@ -279,9 +288,14 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
             selectedIcon: Icon(Icons.description),
             label: 'Leases',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
         ],
       ),
-      floatingActionButton: _currentIndex == 0
+      floatingActionButton: _currentIndex == 0 || _currentIndex == 4
           ? null
           : FloatingActionButton(
               onPressed: () {
@@ -390,6 +404,19 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
             const Divider(),
             const _SectionHeader(title: 'MANAGEMENT'),
             ListTile(
+              leading: const Icon(Icons.verified_user_outlined),
+              title: const Text('Screening'),
+              subtitle: const Text('Tenant background checks'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ScreeningScreen()),
+                );
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.description),
               title: const Text('Documents'),
               onTap: () {
@@ -478,8 +505,46 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                 );
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.handyman_outlined),
+              title: const Text('Vendors'),
+              subtitle: const Text('Contractors, plumbers, electricians'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const VendorListScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.list_alt_outlined),
+              title: const Text('Listings'),
+              subtitle: const Text('Share property listings'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ListingListScreen()),
+                );
+              },
+            ),
             const Divider(),
             const _SectionHeader(title: 'REPORTS'),
+            ListTile(
+              leading: const Icon(Icons.assessment),
+              title: const Text('Reports Dashboard'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ReportsScreen()),
+                );
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.description),
               title: const Text('Rent Roll PDF'),
@@ -532,6 +597,19 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                 }
                 AuthService.instance.setLockEnabled(value);
                 setState(() {});
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.monetization_on_outlined),
+              title: const Text('Late Fee & Reminder'),
+              subtitle: const Text('Configure late fees and rent reminders'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const LateFeeSettingsScreen()),
+                );
               },
             ),
             const Divider(),
