@@ -291,7 +291,8 @@ class AuthProvider extends ChangeNotifier {
       _registrationInProgress = false;
       _isProcessingAuth = false;
       _status = AuthStatus.unauthenticated;
-      _error = 'Registration failed. Please try again.';
+      _error = 'Registration failed: $e';
+      debugPrint('Registration error: $e');
       _isLoading = false;
 
       if (createdUser != null) {

@@ -44,7 +44,7 @@ class UserProfile {
       'name': name,
       'role': role,
       'phone': phone,
-      'isActive': isActive ? 1 : 0,
+      'is_active': isActive ? 1 : 0,
       'owner_id': ownerId,
       'tenant_id': tenantId,
       'created_at': createdAt.toIso8601String(),
@@ -73,7 +73,7 @@ class UserProfile {
       name: (map['name'] as String?) ?? '',
       role: (map['role'] as String?) ?? 'tenant',
       phone: (map['phone'] as String?) ?? '',
-      isActive: map['isActive'] == true || map['isActive'] == 1,
+      isActive: map['is_active'] == true || map['is_active'] == 1 || map['isActive'] == true || map['isActive'] == 1,
       ownerId: map['owner_id'] as int?,
       tenantId: map['tenant_id'] as int?,
       createdAt: map['created_at'] != null

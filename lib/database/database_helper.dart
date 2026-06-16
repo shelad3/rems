@@ -17,7 +17,7 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 4, onCreate: _createDB, onUpgrade: _upgradeDB);
+    return await openDatabase(path, version: 5, onCreate: _createDB, onUpgrade: _upgradeDB);
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -303,6 +303,7 @@ class DatabaseHelper {
           name TEXT DEFAULT '',
           role TEXT DEFAULT 'landlord',
           phone TEXT DEFAULT '',
+          is_active INTEGER DEFAULT 1,
           owner_id INTEGER,
           tenant_id INTEGER,
           created_at TEXT NOT NULL,
@@ -319,6 +320,12 @@ class DatabaseHelper {
       try {
         await db.execute(
             "ALTER TABLE properties ADD COLUMN status TEXT DEFAULT 'rental'");
+      } catch (_) {}
+    }
+    if (oldVersion < 5) {
+      try {
+        await db.execute(
+            "ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1");
       } catch (_) {}
     }
   }
@@ -427,6 +434,7 @@ class DatabaseHelper {
         name TEXT DEFAULT '',
         role TEXT DEFAULT 'landlord',
         phone TEXT DEFAULT '',
+        is_active INTEGER DEFAULT 1,
         owner_id INTEGER,
         tenant_id INTEGER,
         created_at TEXT NOT NULL,
