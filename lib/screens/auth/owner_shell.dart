@@ -8,7 +8,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/expense_provider.dart';
 import '../../providers/property_provider.dart';
-import '../../database/database_helper.dart';
 import '../profile/profile_screen.dart';
 import '../properties/property_detail_screen.dart';
 import '../payments/payment_list_screen.dart';
@@ -24,7 +23,6 @@ class OwnerShell extends StatefulWidget {
 class _OwnerShellState extends State<OwnerShell> {
   int _currentIndex = 0;
   final FirestoreService _firestore = FirestoreService.instance;
-  final DatabaseHelper _db = DatabaseHelper.instance;
 
   @override
   Widget build(BuildContext context) {
@@ -249,7 +247,29 @@ class _OwnerShellState extends State<OwnerShell> {
             SizedBox(
               height: 180,
               child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: _db.getMonthlyRevenue(DateTime.now().year),
+                future: _firestore.db.collection('payments')
+                  .where('status', isEqualTo: 'completed')
+                  .get()
+                  .then((snap) {
+                final monthly = <Map<String, dynamic>>[];
+                for (int m = 1; m <= 12; m++) {
+                  double total = 0;
+                  for (final doc in snap.docs) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final dateStr = data['payment_date'] as String? ?? '';
+                    if (dateStr.isNotEmpty) {
+                      try {
+                        final date = DateTime.parse(dateStr);
+                        if (date.year == DateTime.now().year && date.month == m) {
+                          total += (data['amount'] as num?)?.toDouble() ?? 0;
+                        }
+                      } catch (_) {}
+                    }
+                  }
+                  monthly.add({'month': m, 'total': total});
+                }
+                return monthly;
+              }),
                 builder: (context, snap) {
                   if (!snap.hasData || snap.data!.isEmpty) {
                     return Center(
@@ -633,7 +653,30 @@ class _OwnerShellState extends State<OwnerShell> {
               const SizedBox(height: 8),
               ...myProps.map((prop) {
                 return FutureBuilder<Map<String, dynamic>>(
-                  future: _db.getProfitLoss(prop.id!),
+                  future: Future.wait([
+                    _firestore.db.collection('payments')
+                        .where('propertyId', isEqualTo: prop.id!.toString())
+                        .where('status', isEqualTo: 'completed')
+                        .get(),
+                    _firestore.db.collection('expenses')
+                        .where('propertyId', isEqualTo: prop.id!.toString())
+                        .get(),
+                  ]).then((results) {
+                    final paymentsSnap = results[0] as QuerySnapshot;
+                    final expensesSnap = results[1] as QuerySnapshot;
+                    double income = 0;
+                    for (final doc in paymentsSnap.docs) {
+                      income += ((doc.data() as Map<String, dynamic>)['amount'] as num?)?.toDouble() ?? 0;
+                    }
+                    double expenses = 0;
+                    for (final doc in expensesSnap.docs) {
+                      expenses += ((doc.data() as Map<String, dynamic>)['amount'] as num?)?.toDouble() ?? 0;
+                    }
+                    return <String, dynamic>{
+                      'total_income': income,
+                      'total_expenses': expenses,
+                    };
+                  }),
                   builder: (context, snap) {
                     final pl = snap.data ?? {};
                     final income = (pl['total_income'] as num?)?.toDouble() ?? 0;

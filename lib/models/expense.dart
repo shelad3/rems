@@ -54,6 +54,37 @@ class Expense {
     );
   }
 
+  factory Expense.fromFirestore(Map<String, dynamic> map, String docId) {
+    return Expense(
+      id: int.tryParse(docId),
+      propertyId: int.tryParse(map['propertyId'].toString()) ?? 0,
+      unitId: int.tryParse(map['unitId']?.toString() ?? ''),
+      title: map['title'] as String? ?? '',
+      amount: double.tryParse(map['amount'].toString()) ?? 0,
+      category: map['category'] as String? ?? 'Repairs',
+      description: map['description'] as String? ?? '',
+      receiptPath: map['receiptPath'] as String?,
+      expenseDate: DateTime.tryParse(map['expenseDate'] as String? ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestoreMap() {
+    return {
+      'propertyId': propertyId,
+      'unitId': unitId,
+      'title': title,
+      'amount': amount,
+      'category': category,
+      'description': description,
+      'receiptPath': receiptPath,
+      'expenseDate': expenseDate.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
+
+
   Expense copyWith({
     int? id,
     int? propertyId,

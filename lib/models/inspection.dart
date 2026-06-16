@@ -50,6 +50,33 @@ class Inspection {
     );
   }
 
+  factory Inspection.fromFirestore(Map<String, dynamic> map, String docId) {
+    return Inspection(
+      id: int.tryParse(docId),
+      propertyId: int.tryParse(map['propertyId'].toString()) ?? 0,
+      unitId: int.tryParse(map['unitId']?.toString() ?? ''),
+      title: map['title'] as String? ?? '',
+      type: map['type'] as String? ?? 'Move-in',
+      overallCondition: map['overallCondition'] as String? ?? 'Good',
+      notes: map['notes'] as String? ?? '',
+      inspectionDate: DateTime.tryParse(map['inspectionDate'] as String? ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestoreMap() {
+    return {
+      'propertyId': propertyId,
+      'unitId': unitId,
+      'title': title,
+      'type': type,
+      'overallCondition': overallCondition,
+      'notes': notes,
+      'inspectionDate': inspectionDate.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
   Inspection copyWith({
     int? id,
     int? propertyId,
@@ -117,6 +144,31 @@ class InspectionItem {
       photoPath: map['photo_path'] as String?,
     );
   }
+
+  factory InspectionItem.fromFirestore(Map<String, dynamic> map, String docId) {
+    return InspectionItem(
+      id: int.tryParse(docId),
+      inspectionId: int.tryParse(map['inspectionId'].toString()) ?? 0,
+      roomName: map['roomName'] as String? ?? '',
+      category: map['category'] as String? ?? 'General',
+      condition: map['condition'] as String? ?? 'Good',
+      notes: map['notes'] as String? ?? '',
+      photoPath: map['photoPath'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toFirestoreMap() {
+    return {
+      'inspectionId': inspectionId,
+      'roomName': roomName,
+      'category': category,
+      'condition': condition,
+      'notes': notes,
+      'photoPath': photoPath,
+    };
+  }
+
+
 
   InspectionItem copyWith({
     int? id,

@@ -3,17 +3,14 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../database/database_helper.dart';
 import '../models/user_profile.dart';
 import '../services/firestore_service.dart';
-import '../services/firestore_sync_extension.dart';
 import '../services/push_service.dart';
 
 enum AuthStatus { uninitialized, authenticated, unauthenticated }
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final DatabaseHelper _db = DatabaseHelper.instance;
   final FirestoreService _firestore = FirestoreService.instance;
 
   AuthStatus _status = AuthStatus.uninitialized;
@@ -61,13 +58,24 @@ class AuthProvider extends ChangeNotifier {
       }
 
       try {
-        _user = await _db.getUserByUid(firebaseUser.uid);
+        final firestoreData = await _firestore.getUser(firebaseUser.uid);
+        if (firestoreData != null) {
+          _user = UserProfile.fromFirestore(firestoreData, firebaseUser.uid);
+        }
 
         if (_user == null && !_registrationInProgress) {
-          final firestoreData = await _firestore.getUser(firebaseUser.uid);
-          if (firestoreData != null) {
-            _user = UserProfile.fromFirestore(firestoreData, firebaseUser.uid);
-            await _db.insertUser(_user!);
+          final currentUser = _auth.currentUser;
+          if (currentUser != null) {
+            final data = {
+              'email': currentUser.email ?? '',
+              'name': currentUser.displayName ?? '',
+              'phone': '',
+              'role': 'tenant',
+              'isActive': true,
+              'createdAt': DateTime.now().toIso8601String(),
+            };
+            await _firestore.upsertUser(firebaseUser.uid, data);
+            _user = UserProfile.fromFirestore(data, firebaseUser.uid);
           }
         }
 
@@ -89,7 +97,6 @@ class AuthProvider extends ChangeNotifier {
       }
 
       if (_user != null) {
-        unawaited(_syncExistingData(firebaseUser.uid));
         unawaited(_saveFcmToken(firebaseUser.uid));
       }
     } finally {
@@ -111,15 +118,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _syncExistingData(String uid) async {
-    try {
-      await _firestore.syncAllFromSqlite();
-      await _firestore.downloadFromFirestore();
-    } catch (e) {
-      debugPrint('Sync existing data error: $e');
-    }
-  }
-
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     _error = null;
@@ -131,25 +129,15 @@ class AuthProvider extends ChangeNotifier {
           email: email.trim(), password: password);
       final firebaseUser = result.user!;
 
-      _user = await _db.getUserByUid(firebaseUser.uid);
-
-      if (_user == null) {
-        try {
-          final firestoreData = await _firestore.getUser(firebaseUser.uid);
-          if (firestoreData != null) {
-            _user = UserProfile.fromFirestore(firestoreData, firebaseUser.uid);
-            await _db.insertUser(_user!);
-          }
-        } catch (e) {
-          debugPrint('Firestore user fetch error: $e');
-        }
+      final firestoreData = await _firestore.getUser(firebaseUser.uid);
+      if (firestoreData != null) {
+        _user = UserProfile.fromFirestore(firestoreData, firebaseUser.uid);
       }
 
       if (_user != null) {
         _status = AuthStatus.authenticated;
         _isLoading = false;
         notifyListeners();
-        unawaited(_syncExistingData(firebaseUser.uid));
         unawaited(_saveFcmToken(firebaseUser.uid));
         return true;
       }
@@ -197,16 +185,7 @@ class AuthProvider extends ChangeNotifier {
       int? autoTenantId = tenantId;
 
       if (role == 'owner' && autoOwnerId == null) {
-        final ownerRecord = {
-          'name': name,
-          'email': email.trim(),
-          'phone': phone,
-          'address': '',
-          'notes': 'Auto-created on registration',
-          'looking_for': '',
-          'created_at': DateTime.now().toIso8601String(),
-        };
-        autoOwnerId = await _db.insert('owners', ownerRecord);
+        autoOwnerId = DateTime.now().millisecondsSinceEpoch;
         try {
           await _firestore.db.collection('owners').doc(autoOwnerId.toString()).set({
             'name': name,
@@ -215,7 +194,6 @@ class AuthProvider extends ChangeNotifier {
             'address': '',
             'notes': 'Auto-created on registration',
             'lookingFor': '',
-            'oldOwnerId': autoOwnerId,
             'createdAt': DateTime.now().toIso8601String(),
           });
         } catch (e) {
@@ -224,23 +202,12 @@ class AuthProvider extends ChangeNotifier {
       }
 
       if (role == 'tenant' && autoTenantId == null) {
-        final tenantRecord = {
-          'name': name,
-          'email': email.trim(),
-          'phone': phone,
-          'emergency_contact': '',
-          'emergency_phone': '',
-          'id_number': '',
-          'notes': 'Auto-created on registration',
-          'created_at': DateTime.now().toIso8601String(),
-        };
-        autoTenantId = await _db.insert('tenants', tenantRecord);
+        autoTenantId = DateTime.now().millisecondsSinceEpoch;
         try {
           await _firestore.db.collection('tenants').doc(autoTenantId.toString()).set({
             'name': name,
             'email': email.trim(),
             'phone': phone,
-            'oldTenantId': autoTenantId,
             'createdAt': DateTime.now().toIso8601String(),
           });
         } catch (e) {
@@ -258,19 +225,10 @@ class AuthProvider extends ChangeNotifier {
         tenantId: autoTenantId,
       );
 
-      await _db.insertUser(_user!);
-
       try {
         await _firestore.upsertUser(firebaseUser.uid, _user!.toFirestoreMap());
       } catch (e) {
         debugPrint('Firestore upsertUser error: $e');
-      }
-
-      // Pull existing cloud data into local SQLite
-      try {
-        await _firestore.downloadFromFirestore();
-      } catch (e) {
-        debugPrint('Download from Firestore error: $e');
       }
 
       _registrationInProgress = false;
@@ -317,7 +275,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     _user = _user!.copyWith(name: name, phone: phone);
-    await _db.updateUser(_user!);
     try {
       await _firestore.updateUser(_user!.uid, {
         'name': name,
@@ -333,7 +290,6 @@ class AuthProvider extends ChangeNotifier {
   Future<void> updateRole(String role) async {
     if (_user == null) return;
     _user = _user!.copyWith(role: role);
-    await _db.updateUser(_user!);
     try {
       await _firestore.updateUser(_user!.uid, {'role': role});
     } catch (e) {
@@ -345,7 +301,6 @@ class AuthProvider extends ChangeNotifier {
   Future<void> updateLink({int? ownerId, int? tenantId}) async {
     if (_user == null) return;
     _user = _user!.copyWith(ownerId: ownerId, tenantId: tenantId);
-    await _db.updateUser(_user!);
     notifyListeners();
   }
 
@@ -359,7 +314,10 @@ class AuthProvider extends ChangeNotifier {
   Future<void> reloadUser() async {
     final currentUser = _auth.currentUser;
     if (currentUser != null) {
-      _user = await _db.getUserByUid(currentUser.uid);
+      final data = await _firestore.getUser(currentUser.uid);
+      if (data != null) {
+        _user = UserProfile.fromFirestore(data, currentUser.uid);
+      }
       notifyListeners();
     }
   }

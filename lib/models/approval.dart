@@ -67,6 +67,43 @@ class Approval {
     );
   }
 
+  factory Approval.fromFirestore(Map<String, dynamic> map, String docId) {
+    return Approval(
+      id: int.tryParse(docId),
+      referenceType: map['referenceType'] as String? ?? '',
+      referenceId: int.tryParse(map['referenceId'].toString()) ?? 0,
+      title: map['title'] as String? ?? '',
+      description: map['description'] as String? ?? '',
+      amount: double.tryParse(map['amount']?.toString() ?? ''),
+      requestedBy: map['requestedBy'] as String? ?? '',
+      requestedByName: map['requestedByName'] as String?,
+      status: map['status'] as String? ?? 'Pending',
+      reviewedBy: map['reviewedBy'] as String?,
+      reviewNotes: map['reviewNotes'] as String?,
+      reviewedAt: map['reviewedAt'] != null ? DateTime.tryParse(map['reviewedAt'] as String) : null,
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestoreMap() {
+    return {
+      'referenceType': referenceType,
+      'referenceId': referenceId,
+      'title': title,
+      'description': description,
+      'amount': amount,
+      'requestedBy': requestedBy,
+      'requestedByName': requestedByName,
+      'status': status,
+      'reviewedBy': reviewedBy,
+      'reviewNotes': reviewNotes,
+      'reviewedAt': reviewedAt?.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
+
+
   Approval copyWith({
     int? id,
     String? referenceType,

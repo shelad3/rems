@@ -57,20 +57,34 @@ class Unit {
     );
   }
 
+  factory Unit.fromFirestore(Map<String, dynamic> map, String docId) {
+    return Unit(
+      id: int.tryParse(docId),
+      propertyId: int.tryParse(map['propertyId'].toString()) ?? 0,
+      unitNumber: map['unitNumber'] as String? ?? '',
+      bedrooms: int.tryParse(map['bedrooms'].toString()) ?? 1,
+      bathrooms: int.tryParse(map['bathrooms'].toString()) ?? 1,
+      squareFeet: double.tryParse(map['squareFeet'].toString()) ?? 0,
+      rentAmount: double.tryParse(map['rentAmount'].toString()) ?? 0,
+      securityDeposit: double.tryParse(map['securityDeposit'].toString()) ?? 0,
+      isOccupied: map['isOccupied'] as bool? ?? false,
+      notes: map['notes'] as String? ?? '',
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
   Map<String, dynamic> toFirestoreMap() {
     return {
       'propertyId': propertyId,
       'unitNumber': unitNumber,
-      'rentAmount': rentAmount,
-      'caretakerId': '',
-      'status': isOccupied ? 'occupied' : 'vacant',
-      'location': '',
-      'description': notes,
       'bedrooms': bedrooms,
       'bathrooms': bathrooms,
       'squareFeet': squareFeet,
+      'rentAmount': rentAmount,
       'securityDeposit': securityDeposit,
-      'oldUnitId': id,
+      'isOccupied': isOccupied,
+      'notes': notes,
+      'createdAt': createdAt.toIso8601String(),
     };
   }
 

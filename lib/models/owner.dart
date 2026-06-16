@@ -45,6 +45,19 @@ class Owner {
     );
   }
 
+  factory Owner.fromFirestore(Map<String, dynamic> map, String docId) {
+    return Owner(
+      id: int.tryParse(docId),
+      name: map['name'] as String? ?? '',
+      email: map['email'] as String? ?? '',
+      phone: map['phone'] as String? ?? '',
+      address: map['address'] as String? ?? '',
+      notes: map['notes'] as String? ?? '',
+      lookingFor: map['lookingFor'] as String? ?? '',
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
   Map<String, dynamic> toFirestoreMap() {
     return {
       'name': name,
@@ -54,7 +67,6 @@ class Owner {
       'notes': notes,
       'lookingFor': lookingFor,
       'createdAt': createdAt.toIso8601String(),
-      'oldOwnerId': id,
     };
   }
 

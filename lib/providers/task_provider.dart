@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
-import '../database/database_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task.dart';
+import '../services/firestore_service.dart';
 
 class TaskProvider extends ChangeNotifier {
-  final DatabaseHelper _db = DatabaseHelper.instance;
+  final FirestoreService _firestore = FirestoreService.instance;
   List<Task> _tasks = [];
   bool _isLoading = false;
 
@@ -13,37 +14,55 @@ class TaskProvider extends ChangeNotifier {
   Future<void> loadTasks({String? status, int? propertyId}) async {
     _isLoading = true;
     notifyListeners();
-    final maps = await _db.getTasks(status: status, propertyId: propertyId);
-    _tasks = maps.map((m) => Task.fromMap(m)).toList();
+    final snapshot = await _firestore.db.collection('tasks').get();
+    _tasks = snapshot.docs
+        .map((doc) =>
+            Task.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+    if (status != null) {
+      _tasks = _tasks.where((t) => t.status == status).toList();
+    }
+    if (propertyId != null) {
+      _tasks = _tasks.where((t) => t.propertyId == propertyId).toList();
+    }
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<List<Task>> searchTasks(String query) async {
-    final maps = await _db.searchTasks(query);
-    return maps.map((m) => Task.fromMap(m)).toList();
+  List<Task> searchTasks(String query) {
+    final q = query.toLowerCase();
+    return _tasks.where((t) =>
+      t.title.toLowerCase().contains(q) ||
+      t.description.toLowerCase().contains(q)
+    ).toList();
   }
 
   Future<void> addTask(Task task) async {
-    await _db.insert('tasks', task.toMap());
+    final id = DateTime.now().millisecondsSinceEpoch;
+    await _firestore.db.collection('tasks').doc(id.toString()).set(
+      task.toFirestoreMap(),
+    );
     await loadTasks();
   }
 
   Future<void> updateTask(Task task) async {
-    await _db.update('tasks', task.toMap(), task.id!);
+    await _firestore.db
+        .collection('tasks')
+        .doc(task.id!.toString())
+        .update(task.toFirestoreMap());
     await loadTasks();
   }
 
   Future<void> completeTask(int id) async {
-    await _db.update('tasks', {
+    await _firestore.db.collection('tasks').doc(id.toString()).update({
       'status': 'Completed',
-      'completed_at': DateTime.now().toIso8601String(),
-    }, id);
+      'completedAt': DateTime.now().toIso8601String(),
+    });
     await loadTasks();
   }
 
   Future<void> deleteTask(int id) async {
-    await _db.delete('tasks', id);
+    await _firestore.db.collection('tasks').doc(id.toString()).delete();
     await loadTasks();
   }
 

@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
-import '../database/database_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/vendor.dart';
+import '../services/firestore_service.dart';
 
 class VendorProvider extends ChangeNotifier {
-  final DatabaseHelper _db = DatabaseHelper.instance;
+  final FirestoreService _firestore = FirestoreService.instance;
   List<Vendor> _vendors = [];
   bool _isLoading = false;
 
@@ -13,25 +14,34 @@ class VendorProvider extends ChangeNotifier {
   Future<void> loadVendors() async {
     _isLoading = true;
     notifyListeners();
-    final maps = await _db.queryAll('vendors');
-    _vendors = maps.map((m) => Vendor.fromMap(m)).toList();
+    final snapshot = await _firestore.db.collection('vendors').get();
+    _vendors = snapshot.docs
+        .map((doc) =>
+            Vendor.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
     _isLoading = false;
     notifyListeners();
   }
 
   Future<int> addVendor(Vendor vendor) async {
-    final id = await _db.insert('vendors', vendor.toMap());
+    final id = DateTime.now().millisecondsSinceEpoch;
+    await _firestore.db.collection('vendors').doc(id.toString()).set(
+      vendor.toFirestoreMap(),
+    );
     await loadVendors();
     return id;
   }
 
   Future<void> updateVendor(Vendor vendor) async {
-    await _db.update('vendors', vendor.toMap(), vendor.id!);
+    await _firestore.db
+        .collection('vendors')
+        .doc(vendor.id!.toString())
+        .update(vendor.toFirestoreMap());
     await loadVendors();
   }
 
   Future<void> deleteVendor(int id) async {
-    await _db.delete('vendors', id);
+    await _firestore.db.collection('vendors').doc(id.toString()).delete();
     await loadVendors();
   }
 

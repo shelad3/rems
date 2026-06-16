@@ -58,6 +58,39 @@ class CommunicationLog {
     );
   }
 
+  factory CommunicationLog.fromFirestore(Map<String, dynamic> map, String docId) {
+    return CommunicationLog(
+      id: int.tryParse(docId),
+      propertyId: int.tryParse(map['propertyId']?.toString() ?? ''),
+      unitId: int.tryParse(map['unitId']?.toString() ?? ''),
+      tenantId: int.tryParse(map['tenantId']?.toString() ?? ''),
+      ownerId: int.tryParse(map['ownerId']?.toString() ?? ''),
+      type: map['type'] as String? ?? 'Phone',
+      subject: map['subject'] as String? ?? '',
+      notes: map['notes'] as String? ?? '',
+      direction: map['direction'] as String? ?? 'Outbound',
+      communicationDate: DateTime.tryParse(map['communicationDate'] as String? ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestoreMap() {
+    return {
+      'propertyId': propertyId,
+      'unitId': unitId,
+      'tenantId': tenantId,
+      'ownerId': ownerId,
+      'type': type,
+      'subject': subject,
+      'notes': notes,
+      'direction': direction,
+      'communicationDate': communicationDate.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
+
+
   CommunicationLog copyWith({
     int? id,
     int? propertyId,

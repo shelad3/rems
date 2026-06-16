@@ -69,8 +69,8 @@ class _GuestModeScreenState extends State<GuestModeScreen>
 
       final propertyOwnerMap = <String, String>{};
       for (final p in allProperties) {
-        final oid = p['ownerId'] as String?;
-        if (oid != null && ownerMap.containsKey(oid)) {
+        final oid = (p['ownerId'] ?? '').toString();
+        if (oid.isNotEmpty && ownerMap.containsKey(oid)) {
           propertyOwnerMap[p['id'] as String] = ownerMap[oid]!;
         }
       }
@@ -117,7 +117,7 @@ class _GuestModeScreenState extends State<GuestModeScreen>
           .map((o) {
         final oid = o['id'] as String;
         final props = allProperties
-            .where((p) => p['ownerId'] == oid)
+            .where((p) => (p['ownerId'] ?? '').toString() == oid)
             .toList();
         final lookingFor = o['lookingFor'] as String? ??
             o['looking_for'] as String? ??

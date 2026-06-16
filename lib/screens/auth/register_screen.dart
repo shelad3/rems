@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../database/database_helper.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 
@@ -42,9 +41,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _loadLinkingData() async {
     if (_linkingLoaded) return;
-    try {
-      final db = DatabaseHelper.instance;
 
+    try {
       final ownersSnap = await _firestore.db.collection('owners').get();
       _owners = ownersSnap.docs.map((d) {
             final map = <String, dynamic>{'id': d.id};
@@ -52,7 +50,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             if (data != null) map.addAll(data);
             return map;
           }).toList();
+    } catch (_) {}
 
+    try {
       final propsSnap = await _firestore.propertiesRef.get();
       _properties = propsSnap.docs.map((d) {
             final map = <String, dynamic>{'id': d.id};
@@ -60,7 +60,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             if (data != null) map.addAll(data);
             return map;
           }).toList();
+    } catch (_) {}
 
+    try {
       final unitsSnap = await _firestore.unitsRef.get();
       _units = unitsSnap.docs.map((d) {
             final map = <String, dynamic>{'id': d.id};
@@ -68,45 +70,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             if (data != null) map.addAll(data);
             return map;
           }).toList();
+    } catch (_) {}
 
-      if (_owners.isEmpty) {
-        final localOwners = await db.queryAll('owners');
-        _owners = localOwners.map((m) {
-          return {
-            'id': m['id'].toString(),
-            'name': m['name'] as String? ?? '',
-            'oldOwnerId': m['id'],
-          };
-        }).toList();
-      }
-
-      if (_properties.isEmpty) {
-        final localProps = await db.queryAll('properties');
-        _properties = localProps.map((m) {
-          return {
-            'id': m['id'].toString(),
-            'name': m['name'] as String? ?? '',
-            'oldPropertyId': m['id'],
-          };
-        }).toList();
-      }
-
-      if (_units.isEmpty) {
-        final localUnits = await db.queryAll('units');
-        _units = localUnits.map((m) {
-          return {
-            'id': m['id'].toString(),
-            'unitNumber': m['unit_number'] as String? ?? '',
-            'propertyId': m['property_id'].toString(),
-            'rentAmount': (m['rent_amount'] as num?)?.toDouble() ?? 0,
-            'status': (m['is_occupied'] as int?) == 1 ? 'occupied' : 'vacant',
-            'oldUnitId': m['id'],
-          };
-        }).toList();
-      }
-    } catch (e) {
-      debugPrint('Load linking data error: $e');
-    }
     _linkingLoaded = true;
   }
 

@@ -1,11 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../database/database_helper.dart';
 import '../models/tenant.dart';
 import '../services/firestore_service.dart';
 
 class TenantProvider extends ChangeNotifier {
-  final DatabaseHelper _db = DatabaseHelper.instance;
   final FirestoreService _firestore = FirestoreService.instance;
   List<Tenant> _tenants = [];
   bool _isLoading = false;
@@ -14,58 +12,50 @@ class TenantProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   Stream<QuerySnapshot> get tenantsStream =>
-      FirebaseFirestore.instance.collection('tenants').snapshots();
+      _firestore.db.collection('tenants').snapshots();
 
   Future<void> loadTenants() async {
     _isLoading = true;
     notifyListeners();
-    final maps = await _db.queryAll('tenants');
-    _tenants = maps.map((m) => Tenant.fromMap(m)).toList();
+    final snapshot = await _firestore.db.collection('tenants').get();
+    _tenants = snapshot.docs
+        .map((doc) =>
+            Tenant.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
     _isLoading = false;
     notifyListeners();
   }
 
   Future<int> addTenant(Tenant tenant) async {
-    final id = await _db.insert('tenants', tenant.toMap());
-    try {
-      await _firestore.db.collection('tenants').doc(id.toString()).set({
-        ...tenant.toFirestoreMap(),
-        'oldTenantId': id,
-        'createdAt': DateTime.now().toIso8601String(),
-      });
-    } catch (e) {
-      debugPrint('Firestore addTenant error: $e');
-    }
+    final id = DateTime.now().millisecondsSinceEpoch;
+    await _firestore.db.collection('tenants').doc(id.toString()).set(
+      tenant.toFirestoreMap(),
+    );
     await loadTenants();
     return id;
   }
 
   Future<void> updateTenant(Tenant tenant) async {
-    await _db.update('tenants', tenant.toMap(), tenant.id!);
-    try {
-      await _firestore.db
-          .collection('tenants')
-          .doc(tenant.id.toString())
-          .update(tenant.toFirestoreMap());
-    } catch (e) {
-      debugPrint('Firestore updateTenant error: $e');
-    }
+    await _firestore.db
+        .collection('tenants')
+        .doc(tenant.id!.toString())
+        .update(tenant.toFirestoreMap());
     await loadTenants();
   }
 
   Future<void> deleteTenant(int id) async {
-    await _db.delete('tenants', id);
-    try {
-      await _firestore.db.collection('tenants').doc(id.toString()).delete();
-    } catch (e) {
-      debugPrint('Firestore deleteTenant error: $e');
-    }
+    await _firestore.db.collection('tenants').doc(id.toString()).delete();
     await loadTenants();
   }
 
-  Future<List<Tenant>> searchTenants(String query) async {
-    final maps = await _db.searchTenants(query);
-    return maps.map((m) => Tenant.fromMap(m)).toList();
+  List<Tenant> searchTenants(String query) {
+    final q = query.toLowerCase();
+    return _tenants
+        .where((t) =>
+            t.name.toLowerCase().contains(q) ||
+            t.email.toLowerCase().contains(q) ||
+            t.phone.contains(q))
+        .toList();
   }
 
   Tenant? getTenantById(int id) {

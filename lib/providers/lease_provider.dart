@@ -1,66 +1,50 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../database/database_helper.dart';
 import '../models/lease.dart';
 import '../services/firestore_service.dart';
 
 class LeaseProvider extends ChangeNotifier {
-  final DatabaseHelper _db = DatabaseHelper.instance;
   final FirestoreService _firestore = FirestoreService.instance;
   List<Lease> _leases = [];
-  List<Map<String, dynamic>> _activeLeases = [];
   bool _isLoading = false;
 
   List<Lease> get leases => List.unmodifiable(_leases);
-  List<Map<String, dynamic>> get activeLeases =>
-      _activeLeases.map((m) => Map<String, dynamic>.from(m)).toList();
   bool get isLoading => _isLoading;
 
-  Stream<QuerySnapshot> get leasesStream => _firestore.leasesRef.snapshots();
+  Stream<QuerySnapshot> get leasesStream =>
+      _firestore.db.collection('leases').snapshots();
 
   Future<void> loadLeases() async {
     _isLoading = true;
     notifyListeners();
-    final maps = await _db.queryAll('leases');
-    _leases = maps.map((m) => Lease.fromMap(m)).toList();
-    _activeLeases = await _db.getActiveLeasesWithDetails();
+    final snapshot = await _firestore.db.collection('leases').get();
+    _leases = snapshot.docs
+        .map((doc) =>
+            Lease.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
     _isLoading = false;
     notifyListeners();
   }
 
   Future<int> addLease(Lease lease) async {
-    final id = await _db.insert('leases', lease.toMap());
-    try {
-      await _firestore.leasesRef.doc(id.toString()).set({
-        ...lease.toFirestoreMap(),
-        'oldLeaseId': id,
-      });
-    } catch (e) {
-      debugPrint('Firestore addLease error: $e');
-    }
+    final id = DateTime.now().millisecondsSinceEpoch;
+    await _firestore.db.collection('leases').doc(id.toString()).set(
+      lease.toFirestoreMap(),
+    );
     await loadLeases();
     return id;
   }
 
   Future<void> updateLease(Lease lease) async {
-    await _db.update('leases', lease.toMap(), lease.id!);
-    try {
-      await _firestore.leasesRef
-          .doc(lease.id.toString())
-          .update(lease.toFirestoreMap());
-    } catch (e) {
-      debugPrint('Firestore updateLease error: $e');
-    }
+    await _firestore.db
+        .collection('leases')
+        .doc(lease.id!.toString())
+        .update(lease.toFirestoreMap());
     await loadLeases();
   }
 
   Future<void> deleteLease(int id) async {
-    await _db.delete('leases', id);
-    try {
-      await _firestore.leasesRef.doc(id.toString()).delete();
-    } catch (e) {
-      debugPrint('Firestore deleteLease error: $e');
-    }
+    await _firestore.db.collection('leases').doc(id.toString()).delete();
     await loadLeases();
   }
 

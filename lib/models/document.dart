@@ -49,6 +49,35 @@ class Document {
     );
   }
 
+  factory Document.fromFirestore(Map<String, dynamic> map, String docId) {
+    return Document(
+      id: int.tryParse(docId),
+      propertyId: int.tryParse(map['propertyId']?.toString() ?? ''),
+      unitId: int.tryParse(map['unitId']?.toString() ?? ''),
+      tenantId: int.tryParse(map['tenantId']?.toString() ?? ''),
+      name: map['name'] as String? ?? '',
+      filePath: map['filePath'] as String? ?? '',
+      category: map['category'] as String? ?? 'Other',
+      notes: map['notes'] as String? ?? '',
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestoreMap() {
+    return {
+      'propertyId': propertyId,
+      'unitId': unitId,
+      'tenantId': tenantId,
+      'name': name,
+      'filePath': filePath,
+      'category': category,
+      'notes': notes,
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
+
+
   Document copyWith({
     int? id,
     int? propertyId,

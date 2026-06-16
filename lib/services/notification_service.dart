@@ -1,5 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import '../database/database_helper.dart';
+import 'firestore_service.dart';
 
 class NotificationService {
   static final NotificationService instance = NotificationService._();
@@ -56,23 +56,27 @@ class NotificationService {
   }
 
   Future<void> scheduleRentReminders() async {
-    final db = DatabaseHelper.instance;
-    final leases = await db.getActiveLeasesWithDetails();
+    final firestore = FirestoreService.instance;
+    final leasesSnapshot = await firestore.db.collection('leases').get();
+    final leases = leasesSnapshot.docs.map((doc) => {
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    }).toList();
 
     for (final lease in leases) {
       final endDate =
-          DateTime.parse(lease['end_date'] as String);
+          DateTime.parse(lease['endDate'] as String);
       final daysUntilEnd = DateTime.now().difference(endDate).inDays;
 
       if (daysUntilEnd <= 0 && daysUntilEnd >= -5) {
-        final tenantName = lease['tenant_name'] as String? ?? 'Tenant';
+        final tenantName = lease['tenantName'] as String? ?? 'Tenant';
         final propertyName =
-            lease['property_name'] as String? ?? 'Property';
+            lease['propertyName'] as String? ?? 'Property';
         final rentAmount =
-            (lease['rent_amount'] as num?)?.toDouble() ?? 0;
+            (lease['rentAmount'] as num?)?.toDouble() ?? 0;
 
         await showNotification(
-          id: lease['id'] as int,
+          id: lease['id'].hashCode,
           title: 'Rent Reminder',
           body: '$tenantName - \$${rentAmount.toStringAsFixed(0)} due for $propertyName',
         );

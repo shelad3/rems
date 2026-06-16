@@ -65,17 +65,36 @@ class Property {
     );
   }
 
+  factory Property.fromFirestore(Map<String, dynamic> map, String docId) {
+    return Property(
+      id: int.tryParse(docId),
+      ownerId: int.tryParse(map['ownerId'].toString()) ?? 0,
+      name: map['name'] as String? ?? '',
+      address: map['address'] as String? ?? '',
+      city: map['city'] as String? ?? '',
+      state: map['state'] as String? ?? '',
+      zip: map['zip'] as String? ?? '',
+      type: map['type'] as String? ?? 'Residential',
+      totalUnits: int.tryParse(map['totalUnits'].toString()) ?? 1,
+      notes: map['notes'] as String? ?? '',
+      status: map['status'] as String? ?? 'rental',
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
   Map<String, dynamic> toFirestoreMap() {
     return {
       'name': name,
-      'location': '$address, $city, $state',
       'ownerId': ownerId,
-      'landlordId': '',
-      'images': <String>[],
-      'status': status,
+      'address': address,
+      'city': city,
+      'state': state,
+      'zip': zip,
       'type': type,
+      'totalUnits': totalUnits,
       'notes': notes,
-      'oldPropertyId': id,
+      'status': status,
+      'createdAt': createdAt.toIso8601String(),
     };
   }
 

@@ -22,9 +22,7 @@ import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 import 'services/push_service.dart';
 import 'services/pdf_export_service.dart';
-import 'services/backup_service.dart';
 import 'services/firestore_service.dart';
-import 'services/firestore_sync_extension.dart';
 import 'models/update_info.dart';
 import 'services/update_service.dart';
 import 'screens/update/update_dialog.dart';
@@ -212,8 +210,6 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       if (_locked) {
         _unlock();
-      } else {
-        _autoSync();
       }
     }
   }
@@ -221,15 +217,6 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   Future<void> _unlock() async {
     final ok = await AuthService.instance.authenticate();
     if (mounted) setState(() => _locked = !ok);
-  }
-
-  Future<void> _autoSync() async {
-    try {
-      await FirestoreService.instance.syncAllFromSqlite();
-      await FirestoreService.instance.downloadFromFirestore();
-    } catch (e) {
-      debugPrint('Auto sync on resume error: $e');
-    }
   }
 
   @override
@@ -633,33 +620,6 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
               },
             ),
             const Divider(),
-            const _SectionHeader(title: 'DATA'),
-            ListTile(
-              leading: const Icon(Icons.cloud_sync),
-              title: const Text('Sync from Cloud'),
-              onTap: () async {
-                Navigator.pop(context);
-                final messenger = ScaffoldMessenger.of(context);
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('Syncing data from cloud...')),
-                );
-                await FirestoreService.instance.downloadFromFirestore();
-                if (context.mounted) {
-                  messenger.showSnackBar(
-                    const SnackBar(
-                        content: Text('Sync complete! Pull to refresh screens.')),
-                  );
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.backup),
-              title: const Text('Backup Database'),
-              onTap: () {
-                Navigator.pop(context);
-                BackupService.instance.exportBackup();
-              },
-            ),
             ListTile(
               leading: const Icon(Icons.notifications),
               title: const Text('Test Reminder'),

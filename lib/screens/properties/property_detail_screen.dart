@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../providers/property_provider.dart';
 import '../../providers/maintenance_provider.dart';
-import '../../database/database_helper.dart';
+import '../../services/firestore_service.dart';
 import '../../widgets/maintenance_tile.dart';
 import 'add_edit_property_screen.dart';
 
@@ -21,6 +21,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   Map<String, dynamic>? _propertyWithOwner;
   List<Map<String, dynamic>> _maintenanceRequests = [];
   bool _loading = true;
+  final _firestore = FirestoreService.instance;
 
   @override
   void initState() {
@@ -29,17 +30,46 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   }
 
   Future<void> _loadData() async {
-    final db = DatabaseHelper.instance;
-    final propertyData = await db.getPropertyWithOwner(widget.propertyId);
-    final maintenance =
-        await db.getMaintenanceRequestsByProperty(widget.propertyId);
-    if (mounted) {
-      setState(() {
-        _propertyWithOwner = propertyData;
-        _maintenanceRequests = maintenance;
-        _loading = false;
-      });
-      context.read<PropertyProvider>().loadUnitsByProperty(widget.propertyId);
+    try {
+      final propertyDocs = await _firestore.propertiesRef
+          .where('propertyId', isEqualTo: widget.propertyId)
+          .limit(1)
+          .get();
+      if (propertyDocs.docs.isNotEmpty) {
+        final doc = propertyDocs.docs.first;
+        final data = doc.data() as Map<String, dynamic>;
+        _propertyWithOwner = <String, dynamic>{'id': doc.id}
+          ..addAll(data);
+        final ownerId = data['ownerId'];
+        if (ownerId != null) {
+          final ownerDoc = await _firestore.db.collection('owners')
+              .doc(ownerId.toString())
+              .get();
+          if (ownerDoc.exists) {
+            _propertyWithOwner!['owner_name'] =
+                (ownerDoc.data() as Map<String, dynamic>)['name'];
+          }
+        }
+      }
+
+      final maintenanceSnap = await _firestore.db.collection('maintenance')
+          .where('propertyId', isEqualTo: widget.propertyId.toString())
+          .get();
+      _maintenanceRequests = maintenanceSnap.docs.map((d) {
+        final m = <String, dynamic>{'id': d.id};
+        final data = d.data() as Map<String, dynamic>?;
+        if (data != null) m.addAll(data);
+        return m;
+      }).toList();
+
+      if (mounted) {
+        setState(() => _loading = false);
+        context.read<PropertyProvider>().loadUnitsByProperty(widget.propertyId);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../database/database_helper.dart';
+import '../../services/firestore_service.dart';
 
 class LateFeeSettingsScreen extends StatefulWidget {
   const LateFeeSettingsScreen({super.key});
@@ -9,7 +9,7 @@ class LateFeeSettingsScreen extends StatefulWidget {
 }
 
 class _LateFeeSettingsScreenState extends State<LateFeeSettingsScreen> {
-  final DatabaseHelper _db = DatabaseHelper.instance;
+  final _firestore = FirestoreService.instance;
   final _formKey = GlobalKey<FormState>();
 
   String _lateFeeType = 'percentage';
@@ -36,7 +36,21 @@ class _LateFeeSettingsScreenState extends State<LateFeeSettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    final settings = await _db.getAllSettings();
+    final keys = [
+      'late_fee_type', 'late_fee_value', 'grace_period_days',
+      'reminder_days_before_due', 'auto_apply_late_fees', 'default_due_day',
+    ];
+    final snaps = await Future.wait(
+      keys.map((k) => _firestore.db.collection('settings').doc(k).get()),
+    );
+    final settings = <String, String>{};
+    for (int i = 0; i < keys.length; i++) {
+      final snap = snaps[i];
+      if (snap.exists) {
+        final data = snap.data() as Map<String, dynamic>;
+        settings[keys[i]] = (data['value'] as String?) ?? '';
+      }
+    }
     setState(() {
       _lateFeeType = settings['late_fee_type'] ?? 'percentage';
       _lateFeeValueCtrl.text = settings['late_fee_value'] ?? '5';
@@ -51,12 +65,14 @@ class _LateFeeSettingsScreenState extends State<LateFeeSettingsScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    await _db.setSetting('late_fee_type', _lateFeeType);
-    await _db.setSetting('late_fee_value', _lateFeeValueCtrl.text);
-    await _db.setSetting('grace_period_days', _gracePeriodCtrl.text);
-    await _db.setSetting('reminder_days_before_due', _reminderDaysCtrl.text);
-    await _db.setSetting('auto_apply_late_fees', _autoApply.toString());
-    await _db.setSetting('default_due_day', _dueDayCtrl.text);
+    await Future.wait([
+      _firestore.db.collection('settings').doc('late_fee_type').set({'value': _lateFeeType}),
+      _firestore.db.collection('settings').doc('late_fee_value').set({'value': _lateFeeValueCtrl.text}),
+      _firestore.db.collection('settings').doc('grace_period_days').set({'value': _gracePeriodCtrl.text}),
+      _firestore.db.collection('settings').doc('reminder_days_before_due').set({'value': _reminderDaysCtrl.text}),
+      _firestore.db.collection('settings').doc('auto_apply_late_fees').set({'value': _autoApply.toString()}),
+      _firestore.db.collection('settings').doc('default_due_day').set({'value': _dueDayCtrl.text}),
+    ]);
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -226,7 +242,7 @@ class _LateFeeSettingsScreenState extends State<LateFeeSettingsScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'These settings are stored locally. Cloud sync coming soon.',
+                    'These settings are synced to your account.',
                     style: TextStyle(
                         fontSize: 12, color: Theme.of(context).colorScheme.outline),
                     textAlign: TextAlign.center,

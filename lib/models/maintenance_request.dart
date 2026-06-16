@@ -51,17 +51,32 @@ class MaintenanceRequest {
     );
   }
 
+  factory MaintenanceRequest.fromFirestore(Map<String, dynamic> map, String docId) {
+    return MaintenanceRequest(
+      id: int.tryParse(docId),
+      unitId: int.tryParse(map['unitId'].toString()) ?? 0,
+      tenantId: int.tryParse(map['tenantId'].toString()) ?? 0,
+      title: map['title'] as String? ?? '',
+      description: map['description'] as String? ?? '',
+      priority: map['priority'] as String? ?? 'Medium',
+      status: map['status'] as String? ?? 'Pending',
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+      resolvedAt: map['resolvedAt'] != null ? DateTime.tryParse(map['resolvedAt'] as String) : null,
+    );
+  }
+
+
+
   Map<String, dynamic> toFirestoreMap() {
     return {
       'unitId': unitId,
       'tenantId': tenantId,
-      'issue': title,
+      'title': title,
       'description': description,
       'priority': priority,
       'status': status,
       'createdAt': createdAt.toIso8601String(),
       'resolvedAt': resolvedAt?.toIso8601String(),
-      'oldRequestId': id,
     };
   }
 

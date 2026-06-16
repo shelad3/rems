@@ -65,6 +65,41 @@ class Task {
     );
   }
 
+  factory Task.fromFirestore(Map<String, dynamic> map, String docId) {
+    return Task(
+      id: int.tryParse(docId),
+      propertyId: int.tryParse(map['propertyId']?.toString() ?? ''),
+      unitId: int.tryParse(map['unitId']?.toString() ?? ''),
+      tenantId: int.tryParse(map['tenantId']?.toString() ?? ''),
+      title: map['title'] as String? ?? '',
+      description: map['description'] as String? ?? '',
+      priority: map['priority'] as String? ?? 'Medium',
+      status: map['status'] as String? ?? 'Pending',
+      assignedTo: map['assignedTo'] as String?,
+      dueDate: map['dueDate'] != null ? DateTime.tryParse(map['dueDate'] as String) : null,
+      completedAt: map['completedAt'] != null ? DateTime.tryParse(map['completedAt'] as String) : null,
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestoreMap() {
+    return {
+      'propertyId': propertyId,
+      'unitId': unitId,
+      'tenantId': tenantId,
+      'title': title,
+      'description': description,
+      'priority': priority,
+      'status': status,
+      'assignedTo': assignedTo,
+      'dueDate': dueDate?.toIso8601String(),
+      'completedAt': completedAt?.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
+
+
   Task copyWith({
     int? id,
     int? propertyId,

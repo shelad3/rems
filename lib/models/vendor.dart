@@ -57,6 +57,39 @@ class Vendor {
     );
   }
 
+  factory Vendor.fromFirestore(Map<String, dynamic> map, String docId) {
+    return Vendor(
+      id: int.tryParse(docId),
+      name: map['name'] as String? ?? '',
+      contactPerson: map['contactPerson'] as String? ?? '',
+      email: map['email'] as String? ?? '',
+      phone: map['phone'] as String? ?? '',
+      category: map['category'] as String? ?? 'General',
+      address: map['address'] as String? ?? '',
+      notes: map['notes'] as String? ?? '',
+      hourlyRate: double.tryParse(map['hourlyRate']?.toString() ?? ''),
+      isActive: map['isActive'] as bool? ?? true,
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestoreMap() {
+    return {
+      'name': name,
+      'contactPerson': contactPerson,
+      'email': email,
+      'phone': phone,
+      'category': category,
+      'address': address,
+      'notes': notes,
+      'hourlyRate': hourlyRate,
+      'isActive': isActive,
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
+
+
   Vendor copyWith({
     int? id,
     String? name,

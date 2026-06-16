@@ -6,15 +6,19 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
-import '../database/database_helper.dart';
+import 'firestore_service.dart';
 
 class PdfExportService {
   static final PdfExportService instance = PdfExportService._();
   PdfExportService._();
-  final _db = DatabaseHelper.instance;
+  final _firestore = FirestoreService.instance;
 
   Future<void> exportRentRoll() async {
-    final leases = await _db.getActiveLeasesWithDetails();
+    final leasesSnapshot = await _firestore.db.collection('leases').get();
+    final leases = leasesSnapshot.docs.map((doc) => {
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    }).toList();
     final pdf = pw.Document();
     final currencyFormat = NumberFormat.currency(symbol: '\$');
     final dateFormat = DateFormat('MMM dd, yyyy');
@@ -95,12 +99,22 @@ class PdfExportService {
     await _saveAndShare(pdf, 'rent_roll_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf');
   }
 
-  Future<void> exportPropertyReport(int propertyId) async {
-    final property = await _db.getPropertyWithOwner(propertyId);
-    if (property == null) return;
-    final units = await _db.getUnitsByProperty(propertyId);
-    final maintenance =
-        await _db.getMaintenanceRequestsByProperty(propertyId);
+  Future<void> exportPropertyReport(String propertyId) async {
+    final propDoc = await _firestore.db.collection('properties').doc(propertyId).get();
+    if (!propDoc.exists) return;
+    final property = {'id': propDoc.id, ...propDoc.data() as Map<String, dynamic>};
+    final unitsSnapshot = await _firestore.db.collection('units')
+        .where('propertyId', isEqualTo: propertyId).get();
+    final units = unitsSnapshot.docs.map((doc) => {
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    }).toList();
+    final maintenanceSnapshot = await _firestore.db.collection('maintenance_requests')
+        .where('propertyId', isEqualTo: propertyId).get();
+    final maintenance = maintenanceSnapshot.docs.map((doc) => {
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    }).toList();
     final pdf = pw.Document();
     final currencyFormat = NumberFormat.currency(symbol: '\$');
     final dateFormat = DateFormat('MMM dd, yyyy');
@@ -165,8 +179,32 @@ class PdfExportService {
   }
 
   Future<void> exportProfitLoss(int year) async {
-    final revenue = await _db.getMonthlyRevenue(year);
-    final expenses = await _db.queryAll('expenses');
+    final expensesSnapshot = await _firestore.db.collection('expenses').get();
+    final expenses = expensesSnapshot.docs.map((doc) => ({
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    })).toList();
+    final paymentsSnapshot = await _firestore.db.collection('payments').get();
+    final allPayments = paymentsSnapshot.docs.map((doc) => ({
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    })).toList();
+    final revenue = <Map<String, dynamic>>[];
+    for (int m = 1; m <= 12; m++) {
+      final total = allPayments
+          .where((p) {
+            try {
+              final date = DateTime.parse(p['paymentDate'] as String);
+              return date.month == m && date.year == year && p['status'] == 'Paid';
+            } catch (_) {
+              return false;
+            }
+          })
+          .fold<double>(0, (s, r) => s + ((r['amount'] as num?)?.toDouble() ?? 0));
+      if (total > 0) {
+        revenue.add({'month': m, 'total': total});
+      }
+    }
     final currencyFormat = NumberFormat.currency(symbol: 'KSH ');
     final dateFormat = DateFormat('MMM dd, yyyy');
 
@@ -266,8 +304,32 @@ class PdfExportService {
   }
 
   Future<void> exportCashFlow(int year) async {
-    final revenue = await _db.getMonthlyRevenue(year);
-    final expenses = await _db.queryAll('expenses');
+    final expensesSnapshot = await _firestore.db.collection('expenses').get();
+    final expenses = expensesSnapshot.docs.map((doc) => ({
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    })).toList();
+    final paymentsSnapshot = await _firestore.db.collection('payments').get();
+    final allPayments = paymentsSnapshot.docs.map((doc) => ({
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    })).toList();
+    final revenue = <Map<String, dynamic>>[];
+    for (int m = 1; m <= 12; m++) {
+      final total = allPayments
+          .where((p) {
+            try {
+              final date = DateTime.parse(p['paymentDate'] as String);
+              return date.month == m && date.year == year && p['status'] == 'Paid';
+            } catch (_) {
+              return false;
+            }
+          })
+          .fold<double>(0, (s, r) => s + ((r['amount'] as num?)?.toDouble() ?? 0));
+      if (total > 0) {
+        revenue.add({'month': m, 'total': total});
+      }
+    }
     final currencyFormat = NumberFormat.currency(symbol: 'KSH ');
     final dateFormat = DateFormat('MMM yyyy');
 
@@ -351,14 +413,18 @@ class PdfExportService {
   }
 
   Future<void> exportScheduleE(int year) async {
-    final properties = await _db.queryAll('properties');
+    final propertiesSnapshot = await _firestore.db.collection('properties').get();
+    final properties = propertiesSnapshot.docs.map((doc) => ({
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    })).toList();
     final currencyFormat = NumberFormat.currency(symbol: 'KSH ');
     final dateFormat = DateFormat('MMM dd, yyyy');
 
     // Pre-fetch all data for each property
     final propertyData = <Map<String, dynamic>>[];
     for (final prop in properties) {
-      final pid = prop['id'] as int;
+      final pid = prop['id'] as String;
       final rentCollected = await _getPropertyRentCollected(pid, year);
       final totalExpenses = await _getPropertyTotalExpenses(pid, year);
       final expenseCategories = <Map<String, dynamic>>[];
@@ -505,44 +571,57 @@ class PdfExportService {
     );
   }
 
-  Future<double> _getPropertyRentCollected(int propertyId, int year) async {
-    final db = await _db.database;
-    final result = await db.rawQuery('''
-      SELECT COALESCE(SUM(p.amount), 0) as total
-      FROM payments p
-      JOIN leases l ON p.lease_id = l.id
-      JOIN units u ON l.unit_id = u.id
-      WHERE u.property_id = ? AND p.status = 'Paid'
-      AND strftime('%Y', p.payment_date) = ?
-    ''', [propertyId, year.toString()]);
-    return (result.first['total'] as num?)?.toDouble() ?? 0;
+  Future<double> _getPropertyRentCollected(String propertyId, int year) async {
+    final snapshot = await _firestore.db.collection('payments').get();
+    final payments = snapshot.docs.map((doc) => ({
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    })).toList();
+    final total = payments
+        .where((p) =>
+            p['propertyId'] == propertyId &&
+            p['status'] == 'Paid' &&
+            DateTime.parse(p['paymentDate'] as String).year == year)
+        .fold<double>(0, (s, p) => s + ((p['amount'] as num?)?.toDouble() ?? 0));
+    return total;
   }
 
   Future<double> _getPropertyExpenseByCategory(
-      int propertyId, String category, int year) async {
-    final db = await _db.database;
-    final result = await db.rawQuery('''
-      SELECT COALESCE(SUM(amount), 0) as total
-      FROM expenses
-      WHERE property_id = ? AND category = ?
-      AND strftime('%Y', expense_date) = ?
-    ''', [propertyId, category, year.toString()]);
-    return (result.first['total'] as num?)?.toDouble() ?? 0;
+      String propertyId, String category, int year) async {
+    final snapshot = await _firestore.db.collection('expenses').get();
+    final expenses = snapshot.docs.map((doc) => ({
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    })).toList();
+    final total = expenses
+        .where((e) =>
+            e['propertyId'] == propertyId &&
+            e['category'] == category &&
+            DateTime.parse(e['expenseDate'] as String).year == year)
+        .fold<double>(0, (s, e) => s + ((e['amount'] as num?)?.toDouble() ?? 0));
+    return total;
   }
 
-  Future<double> _getPropertyTotalExpenses(int propertyId, int year) async {
-    final db = await _db.database;
-    final result = await db.rawQuery('''
-      SELECT COALESCE(SUM(amount), 0) as total
-      FROM expenses
-      WHERE property_id = ?
-      AND strftime('%Y', expense_date) = ?
-    ''', [propertyId, year.toString()]);
-    return (result.first['total'] as num?)?.toDouble() ?? 0;
+  Future<double> _getPropertyTotalExpenses(String propertyId, int year) async {
+    final snapshot = await _firestore.db.collection('expenses').get();
+    final expenses = snapshot.docs.map((doc) => ({
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    })).toList();
+    final total = expenses
+        .where((e) =>
+            e['propertyId'] == propertyId &&
+            DateTime.parse(e['expenseDate'] as String).year == year)
+        .fold<double>(0, (s, e) => s + ((e['amount'] as num?)?.toDouble() ?? 0));
+    return total;
   }
 
   Future<void> exportMaintenanceReport() async {
-    final requests = await _db.queryAll('maintenance_requests');
+    final requestsSnapshot = await _firestore.db.collection('maintenance_requests').get();
+    final requests = requestsSnapshot.docs.map((doc) => ({
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    })).toList();
     final pdf = pw.Document();
     final dateFormat = DateFormat('MMM dd, yyyy');
 
@@ -618,7 +697,11 @@ class PdfExportService {
   }
 
   Future<void> exportQuickBooksCSV(int year) async {
-    final payments = await _db.queryAll('payments');
+    final paymentsSnapshot = await _firestore.db.collection('payments').get();
+    final payments = paymentsSnapshot.docs.map((doc) => ({
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    })).toList();
     final currencyFormat = NumberFormat.currency(symbol: 'KSH ', decimalDigits: 0);
 
     final buffer = StringBuffer();

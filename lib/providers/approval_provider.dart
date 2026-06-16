@@ -1,50 +1,53 @@
 import 'package:flutter/foundation.dart';
-import '../database/database_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/approval.dart';
+import '../services/firestore_service.dart';
 
 class ApprovalProvider extends ChangeNotifier {
-  final DatabaseHelper _db = DatabaseHelper.instance;
+  final FirestoreService _firestore = FirestoreService.instance;
   List<Approval> _approvals = [];
-  List<Approval> _pendingApprovals = [];
   bool _isLoading = false;
 
   List<Approval> get approvals => _approvals;
-  List<Approval> get pendingApprovals => _pendingApprovals;
+  List<Approval> get pendingApprovals =>
+      _approvals.where((a) => a.status == 'Pending').toList();
   bool get isLoading => _isLoading;
 
   Future<void> loadApprovals() async {
     _isLoading = true;
     notifyListeners();
-    final maps = await _db.getAllApprovals();
-    _approvals = maps.map((m) => Approval.fromMap(m)).toList();
-    final pendingMaps = await _db.getPendingApprovals();
-    _pendingApprovals =
-        pendingMaps.map((m) => Approval.fromMap(m)).toList();
+    final snapshot = await _firestore.db.collection('approvals').get();
+    _approvals = snapshot.docs
+        .map((doc) =>
+            Approval.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
     _isLoading = false;
     notifyListeners();
   }
 
   Future<void> addApproval(Approval approval) async {
-    await _db.insert('approvals', approval.toMap());
+    final id = DateTime.now().millisecondsSinceEpoch;
+    await _firestore.db.collection('approvals').doc(id.toString()).set(
+      approval.toFirestoreMap(),
+    );
     await loadApprovals();
   }
 
   Future<void> reviewApproval(
       int id, String status, String reviewedBy, String reviewNotes) async {
-    final values = {
+    await _firestore.db.collection('approvals').doc(id.toString()).update({
       'status': status,
-      'reviewed_by': reviewedBy,
-      'review_notes': reviewNotes,
-      'reviewed_at': DateTime.now().toIso8601String(),
-    };
-    await _db.update('approvals', values, id);
+      'reviewedBy': reviewedBy,
+      'reviewNotes': reviewNotes,
+      'reviewedAt': DateTime.now().toIso8601String(),
+    });
     await loadApprovals();
   }
 
   Future<void> deleteApproval(int id) async {
-    await _db.delete('approvals', id);
+    await _firestore.db.collection('approvals').doc(id.toString()).delete();
     await loadApprovals();
   }
 
-  int get pendingCount => _pendingApprovals.length;
+  int get pendingCount => pendingApprovals.length;
 }

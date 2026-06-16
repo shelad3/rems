@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/payment_provider.dart';
 
 import '../../providers/maintenance_provider.dart';
 import '../../providers/expense_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../providers/approval_provider.dart';
-import '../../database/database_helper.dart';
+import '../../services/firestore_service.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/payment_tile.dart';
 import '../../services/pdf_export_service.dart';
@@ -30,6 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic>? _stats;
   bool _loadingStats = true;
   List<Map<String, dynamic>> _monthlyRevenue = [];
+  final _firestore = FirestoreService.instance;
 
   @override
   void initState() {
@@ -38,15 +40,84 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadData() async {
-    final db = DatabaseHelper.instance;
-    final stats = await db.getDashboardStats();
-    final revenue = await db.getMonthlyRevenue(DateTime.now().year);
-    if (mounted) {
-      setState(() {
-        _stats = stats.isNotEmpty ? stats.first : null;
-        _monthlyRevenue = revenue;
-        _loadingStats = false;
-      });
+    try {
+      final snapshots = await Future.wait([
+        _firestore.db.collection('properties').get(),
+        _firestore.db.collection('units').get(),
+        _firestore.db.collection('users').where('role', isEqualTo: 'tenant').get(),
+        _firestore.db.collection('leases').where('isActive', isEqualTo: true).get(),
+        _firestore.db.collection('maintenance').get(),
+        _firestore.db.collection('payments').where('status', isEqualTo: 'completed').get(),
+      ]);
+
+      final propertiesSnap = snapshots[0] as QuerySnapshot;
+      final unitsSnap = snapshots[1] as QuerySnapshot;
+      final tenantsSnap = snapshots[2] as QuerySnapshot;
+      final leasesSnap = snapshots[3] as QuerySnapshot;
+      final maintenanceSnap = snapshots[4] as QuerySnapshot;
+      final paymentsSnap = snapshots[5] as QuerySnapshot;
+
+      final totalProperties = propertiesSnap.docs.length;
+      final totalUnits = unitsSnap.docs.length;
+      final occupiedUnits = unitsSnap.docs
+          .where((d) =>
+              (d.data() as Map<String, dynamic>)['status'] == 'occupied')
+          .length;
+      final totalTenants = tenantsSnap.docs.length;
+      final activeLeases = leasesSnap.docs.length;
+      final openMaintenance = maintenanceSnap.docs
+          .where((d) =>
+              (d.data() as Map<String, dynamic>)['status'] != 'completed')
+          .length;
+
+      double totalCollected = 0;
+      for (final doc in paymentsSnap.docs) {
+        totalCollected +=
+            ((doc.data() as Map<String, dynamic>)['amount'] as num?)?.toDouble() ?? 0;
+      }
+
+      final currentYear = DateTime.now().year;
+      final monthlyRevenue = <Map<String, dynamic>>[];
+      for (int m = 1; m <= 12; m++) {
+        double monthTotal = 0;
+        for (final doc in paymentsSnap.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          final dateStr = data['payment_date'] as String? ?? '';
+          if (dateStr.isNotEmpty) {
+            try {
+              final date = DateTime.parse(dateStr);
+              if (date.year == currentYear && date.month == m) {
+                monthTotal += (data['amount'] as num?)?.toDouble() ?? 0;
+              }
+            } catch (_) {}
+          }
+        }
+        monthlyRevenue.add({'month': '$m', 'total': monthTotal});
+      }
+
+      if (mounted) {
+        setState(() {
+          _stats = {
+            'total_properties': totalProperties,
+            'total_units': totalUnits,
+            'occupied_units': occupiedUnits,
+            'total_tenants': totalTenants,
+            'active_leases': activeLeases,
+            'open_maintenance': openMaintenance,
+            'total_collected': totalCollected,
+          };
+          _monthlyRevenue = monthlyRevenue;
+          _loadingStats = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _stats = {};
+          _monthlyRevenue = [];
+          _loadingStats = false;
+        });
+      }
     }
   }
 

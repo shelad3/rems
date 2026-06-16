@@ -53,18 +53,32 @@ class Lease {
     );
   }
 
+  factory Lease.fromFirestore(Map<String, dynamic> map, String docId) {
+    return Lease(
+      id: int.tryParse(docId),
+      unitId: int.tryParse(map['unitId'].toString()) ?? 0,
+      tenantId: int.tryParse(map['tenantId'].toString()) ?? 0,
+      startDate: DateTime.tryParse(map['startDate'] as String? ?? '') ?? DateTime.now(),
+      endDate: DateTime.tryParse(map['endDate'] as String? ?? '') ?? DateTime.now(),
+      rentAmount: double.tryParse(map['rentAmount'].toString()) ?? 0,
+      securityDeposit: double.tryParse(map['securityDeposit'].toString()) ?? 0,
+      isActive: map['isActive'] as bool? ?? true,
+      notes: map['notes'] as String? ?? '',
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
   Map<String, dynamic> toFirestoreMap() {
     return {
       'unitId': unitId,
       'tenantId': tenantId,
-      'rentAmount': rentAmount,
-      'deposit': securityDeposit,
       'startDate': startDate.toIso8601String(),
       'endDate': endDate.toIso8601String(),
+      'rentAmount': rentAmount,
+      'securityDeposit': securityDeposit,
       'isActive': isActive,
       'notes': notes,
       'createdAt': createdAt.toIso8601String(),
-      'oldLeaseId': id,
     };
   }
 

@@ -85,6 +85,30 @@ class Payment {
     );
   }
 
+  factory Payment.fromFirestore(Map<String, dynamic> map, String docId) {
+    return Payment(
+      id: int.tryParse(docId),
+      leaseId: int.tryParse(map['leaseId'].toString()) ?? 0,
+      tenantId: int.tryParse(map['tenantId'].toString()) ?? 0,
+      amount: double.tryParse(map['amount'].toString()) ?? 0,
+      paymentDate: DateTime.tryParse(map['paymentDate'] as String? ?? '') ?? DateTime.now(),
+      paymentType: map['paymentType'] as String? ?? 'Rent',
+      status: map['status'] as String? ?? 'Paid',
+      paymentMethod: map['paymentMethod'] as String? ?? 'Cash',
+      transactionId: map['transactionId'] as String?,
+      mpesaReceipt: map['mpesaReceipt'] as String?,
+      stripePaymentIntentId: map['stripePaymentIntentId'] as String?,
+      paidBy: map['paidBy'] as String? ?? 'tenant',
+      lateFee: double.tryParse(map['lateFee'].toString()) ?? 0,
+      periodStart: map['periodStart'] != null ? DateTime.tryParse(map['periodStart'] as String) : null,
+      periodEnd: map['periodEnd'] != null ? DateTime.tryParse(map['periodEnd'] as String) : null,
+      notes: map['notes'] as String? ?? '',
+      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+
+
   Map<String, dynamic> toFirestoreMap() {
     return {
       'leaseId': leaseId,
@@ -103,7 +127,6 @@ class Payment {
       'periodEnd': periodEnd?.toIso8601String(),
       'notes': notes,
       'createdAt': createdAt.toIso8601String(),
-      'oldPaymentId': id,
     };
   }
 

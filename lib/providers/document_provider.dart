@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
-import '../database/database_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/document.dart';
+import '../services/firestore_service.dart';
 
 class DocumentProvider extends ChangeNotifier {
-  final DatabaseHelper _db = DatabaseHelper.instance;
+  final FirestoreService _firestore = FirestoreService.instance;
   List<Document> _documents = [];
   bool _isLoading = false;
 
@@ -17,28 +18,33 @@ class DocumentProvider extends ChangeNotifier {
   }) async {
     _isLoading = true;
     notifyListeners();
-    if (propertyId == null && unitId == null && tenantId == null) {
-      final maps = await _db.queryAll('documents');
-      _documents = maps.map((m) => Document.fromMap(m)).toList();
-    } else {
-      final maps = await _db.getDocumentsByTarget(
-        propertyId: propertyId,
-        unitId: unitId,
-        tenantId: tenantId,
-      );
-      _documents = maps.map((m) => Document.fromMap(m)).toList();
+    final snapshot = await _firestore.db.collection('documents').get();
+    _documents = snapshot.docs
+        .map((doc) =>
+            Document.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+    if (propertyId != null || unitId != null || tenantId != null) {
+      _documents = _documents.where((d) {
+        if (propertyId != null && d.propertyId != propertyId) return false;
+        if (unitId != null && d.unitId != unitId) return false;
+        if (tenantId != null && d.tenantId != tenantId) return false;
+        return true;
+      }).toList();
     }
     _isLoading = false;
     notifyListeners();
   }
 
   Future<void> addDocument(Document document) async {
-    await _db.insert('documents', document.toMap());
+    final id = DateTime.now().millisecondsSinceEpoch;
+    await _firestore.db.collection('documents').doc(id.toString()).set(
+      document.toFirestoreMap(),
+    );
     await loadDocuments();
   }
 
   Future<void> deleteDocument(int id) async {
-    await _db.delete('documents', id);
+    await _firestore.db.collection('documents').doc(id.toString()).delete();
     await loadDocuments();
   }
 
