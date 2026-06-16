@@ -28,7 +28,7 @@ class TenantProvider extends ChangeNotifier {
   Future<int> addTenant(Tenant tenant) async {
     final id = await _db.insert('tenants', tenant.toMap());
     try {
-      await _firestore.db.collection('tenants').add({
+      await _firestore.db.collection('tenants').doc(id.toString()).set({
         ...tenant.toFirestoreMap(),
         'oldTenantId': id,
         'createdAt': DateTime.now().toIso8601String(),
@@ -43,13 +43,10 @@ class TenantProvider extends ChangeNotifier {
   Future<void> updateTenant(Tenant tenant) async {
     await _db.update('tenants', tenant.toMap(), tenant.id!);
     try {
-      final docs = await _firestore.db
+      await _firestore.db
           .collection('tenants')
-          .where('oldTenantId', isEqualTo: tenant.id)
-          .get();
-      for (final d in docs.docs) {
-        await d.reference.update(tenant.toFirestoreMap());
-      }
+          .doc(tenant.id.toString())
+          .update(tenant.toFirestoreMap());
     } catch (e) {
       debugPrint('Firestore updateTenant error: $e');
     }
@@ -59,13 +56,7 @@ class TenantProvider extends ChangeNotifier {
   Future<void> deleteTenant(int id) async {
     await _db.delete('tenants', id);
     try {
-      final docs = await _firestore.db
-          .collection('tenants')
-          .where('oldTenantId', isEqualTo: id)
-          .get();
-      for (final d in docs.docs) {
-        await d.reference.delete();
-      }
+      await _firestore.db.collection('tenants').doc(id.toString()).delete();
     } catch (e) {
       debugPrint('Firestore deleteTenant error: $e');
     }

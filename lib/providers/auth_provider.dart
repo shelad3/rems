@@ -208,7 +208,7 @@ class AuthProvider extends ChangeNotifier {
         };
         autoOwnerId = await _db.insert('owners', ownerRecord);
         try {
-          await _firestore.db.collection('owners').add({
+          await _firestore.db.collection('owners').doc(autoOwnerId.toString()).set({
             'name': name,
             'email': email.trim(),
             'phone': phone,
@@ -236,7 +236,7 @@ class AuthProvider extends ChangeNotifier {
         };
         autoTenantId = await _db.insert('tenants', tenantRecord);
         try {
-          await _firestore.db.collection('tenants').add({
+          await _firestore.db.collection('tenants').doc(autoTenantId.toString()).set({
             'name': name,
             'email': email.trim(),
             'phone': phone,

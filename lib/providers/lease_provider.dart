@@ -31,7 +31,7 @@ class LeaseProvider extends ChangeNotifier {
   Future<int> addLease(Lease lease) async {
     final id = await _db.insert('leases', lease.toMap());
     try {
-      await _firestore.addLease({
+      await _firestore.leasesRef.doc(id.toString()).set({
         ...lease.toFirestoreMap(),
         'oldLeaseId': id,
       });
@@ -45,12 +45,9 @@ class LeaseProvider extends ChangeNotifier {
   Future<void> updateLease(Lease lease) async {
     await _db.update('leases', lease.toMap(), lease.id!);
     try {
-      final docs = await _firestore.leasesRef
-          .where('oldLeaseId', isEqualTo: lease.id)
-          .get();
-      for (final d in docs.docs) {
-        await _firestore.updateLease(d.id, lease.toFirestoreMap());
-      }
+      await _firestore.leasesRef
+          .doc(lease.id.toString())
+          .update(lease.toFirestoreMap());
     } catch (e) {
       debugPrint('Firestore updateLease error: $e');
     }
@@ -60,12 +57,7 @@ class LeaseProvider extends ChangeNotifier {
   Future<void> deleteLease(int id) async {
     await _db.delete('leases', id);
     try {
-      final docs = await _firestore.leasesRef
-          .where('oldLeaseId', isEqualTo: id)
-          .get();
-      for (final d in docs.docs) {
-        await d.reference.delete();
-      }
+      await _firestore.leasesRef.doc(id.toString()).delete();
     } catch (e) {
       debugPrint('Firestore deleteLease error: $e');
     }

@@ -1,0 +1,54 @@
+[
+  {
+    "id": "1",
+    "createdAt": "2026-06-16T10:14:59.820118",
+    "oldLeaseId": 1,
+    "notes": "",
+    "endDate": "2027-06-15T13:44:01.166208",
+    "rentAmount": 8500,
+    "tenantId": "1",
+    "unitId": "13",
+    "deposit": 2500,
+    "isActive": true,
+    "startDate": "2026-06-15T13:44:01.166206"
+  },
+  {
+    "id": "2",
+    "createdAt": "2026-06-16T10:17:28.392133",
+    "oldLeaseId": 2,
+    "notes": "",
+    "endDate": "2027-06-16T10:17:07.631519",
+    "rentAmount": 5800,
+    "tenantId": "1",
+    "unitId": "5",
+    "deposit": 2500,
+    "isActive": true,
+    "startDate": "2026-06-16T10:17:07.631517"
+  },
+  {
+    "id": "Wv7jpgqUfIMgvwpdbvgz",
+    "createdAt": "2026-06-16T11:35:58.918795",
+    "oldLeaseId": 4,
+    "notes": "",
+    "endDate": "2027-06-16T11:35:42.625738",
+    "rentAmount": 8500,
+    "tenantId": 1,
+    "unitId": 6,
+    "deposit": 2500,
+    "isActive": true,
+    "startDate": "2026-06-16T11:35:42.625737"
+  },
+  {
+    "id": "str1FOkWiOifGk4WnQ4J",
+    "createdAt": "2026-06-16T11:27:31.738730",
+    "oldLeaseId": 3,
+    "notes": "NB",
+    "endDate": "2027-06-16T11:27:12.063092",
+    "rentAmount": 8500,
+    "tenantId": 1,
+    "unitId": 8,
+    "deposit": 2500,
+    "isActive": true,
+    "startDate": "2026-06-16T00:00:00.000"
+  }
+]

@@ -28,7 +28,7 @@ class OwnerProvider extends ChangeNotifier {
   Future<int> addOwner(Owner owner) async {
     final id = await _db.insert('owners', owner.toMap());
     try {
-      await _firestore.db.collection('owners').add({
+      await _firestore.db.collection('owners').doc(id.toString()).set({
         ...owner.toFirestoreMap(),
         'oldOwnerId': id,
         'createdAt': DateTime.now().toIso8601String(),
@@ -43,13 +43,10 @@ class OwnerProvider extends ChangeNotifier {
   Future<void> updateOwner(Owner owner) async {
     await _db.update('owners', owner.toMap(), owner.id!);
     try {
-      final docs = await _firestore.db
+      await _firestore.db
           .collection('owners')
-          .where('oldOwnerId', isEqualTo: owner.id)
-          .get();
-      for (final d in docs.docs) {
-        await d.reference.update(owner.toFirestoreMap());
-      }
+          .doc(owner.id.toString())
+          .update(owner.toFirestoreMap());
     } catch (e) {
       debugPrint('Firestore updateOwner error: $e');
     }
@@ -59,13 +56,7 @@ class OwnerProvider extends ChangeNotifier {
   Future<void> deleteOwner(int id) async {
     await _db.delete('owners', id);
     try {
-      final docs = await _firestore.db
-          .collection('owners')
-          .where('oldOwnerId', isEqualTo: id)
-          .get();
-      for (final d in docs.docs) {
-        await d.reference.delete();
-      }
+      await _firestore.db.collection('owners').doc(id.toString()).delete();
     } catch (e) {
       debugPrint('Firestore deleteOwner error: $e');
     }

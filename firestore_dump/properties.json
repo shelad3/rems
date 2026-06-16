@@ -1,0 +1,27 @@
+[
+  {
+    "id": "1",
+    "oldPropertyId": 1,
+    "createdAt": "2026-06-16T10:16:14.715247",
+    "images": [],
+    "notes": "NB",
+    "name": "Gampids",
+    "location": "Kiambu, ",
+    "ownerId": "0",
+    "landlordId": "",
+    "type": "Residential",
+    "status": "rental"
+  },
+  {
+    "id": "Qz17LuYOzY6fSXfMRxR9",
+    "oldPropertyId": null,
+    "images": [],
+    "notes": "",
+    "name": "Kimbli",
+    "location": "hkn, Nairobi, 254",
+    "ownerId": 1,
+    "landlordId": "",
+    "type": "Residential",
+    "status": "rental"
+  }
+]

@@ -1,0 +1,40 @@
+[
+  {
+    "id": "b6Q4sLa9ktbDwJfaIAxR0cNCqov2",
+    "createdAt": "2026-06-16T12:48:46.162540",
+    "uid": "b6Q4sLa9ktbDwJfaIAxR0cNCqov2",
+    "role": "landlord",
+    "phone": "0723868407",
+    "tenantId": null,
+    "name": "John Njoroge Mwangi",
+    "isActive": true,
+    "ownerId": null,
+    "email": "mwajsquired@gmail.com"
+  },
+  {
+    "id": "xS6gqkNwbHVET3RaOEiuqbQjCbB3",
+    "createdAt": "2026-06-16T11:34:27.631853",
+    "uid": "xS6gqkNwbHVET3RaOEiuqbQjCbB3",
+    "role": "tenant",
+    "phone": "01112327446",
+    "name": "Ramu",
+    "tenantId": 1,
+    "isActive": true,
+    "ownerId": null,
+    "email": "ramusheldon@gmail.com"
+  },
+  {
+    "id": "z8gsKwHmLGX4lsw9mv5JrVhvg9C2",
+    "uid": "z8gsKwHmLGX4lsw9mv5JrVhvg9C2",
+    "createdAt": "2026-06-16T10:14:56.443336",
+    "role": "landlord",
+    "phone": "0112327446",
+    "tenantId": null,
+    "name": "Sheldon Ramu",
+    "ownerId": null,
+    "isActive": true,
+    "email": "sheldonramu8@gmail.com",
+    "fcmToken": "e4Xc9qe2QYKJd437xwXyg9:APA91bHL2zzsjBEynzdAlNbfsxsFzWcRVOcq0_Pwib3NML-5_ox-jeQcIYTgXlOEor85kJzuD1VX1NRB54ODgGJ1UHxklWwIiMLNdSbQhNf0rQkNPbj50T4",
+    "updatedAt": "2026-06-16T11:35:31.432583"
+  }
+]

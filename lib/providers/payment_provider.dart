@@ -45,7 +45,7 @@ class PaymentProvider extends ChangeNotifier {
       if (checkoutRequestId != null) {
         firestoreData['checkoutRequestId'] = checkoutRequestId;
       }
-      await _firestore.db.collection('payments').add(firestoreData);
+      await _firestore.db.collection('payments').doc(id.toString()).set(firestoreData);
     } catch (e) {
       debugPrint('Firestore addPayment error: $e');
     }
@@ -56,13 +56,10 @@ class PaymentProvider extends ChangeNotifier {
   Future<void> updatePayment(Payment payment) async {
     await _db.update('payments', payment.toMap(), payment.id!);
     try {
-      final docs = await _firestore.db
+      await _firestore.db
           .collection('payments')
-          .where('oldPaymentId', isEqualTo: payment.id)
-          .get();
-      for (final d in docs.docs) {
-        await d.reference.update(payment.toFirestoreMap());
-      }
+          .doc(payment.id.toString())
+          .update(payment.toFirestoreMap());
     } catch (e) {
       debugPrint('Firestore updatePayment error: $e');
     }
@@ -72,13 +69,7 @@ class PaymentProvider extends ChangeNotifier {
   Future<void> deletePayment(int id) async {
     await _db.delete('payments', id);
     try {
-      final docs = await _firestore.db
-          .collection('payments')
-          .where('oldPaymentId', isEqualTo: id)
-          .get();
-      for (final d in docs.docs) {
-        await d.reference.delete();
-      }
+      await _firestore.db.collection('payments').doc(id.toString()).delete();
     } catch (e) {
       debugPrint('Firestore deletePayment error: $e');
     }
