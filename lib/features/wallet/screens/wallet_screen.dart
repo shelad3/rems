@@ -426,7 +426,7 @@ class _WithdrawalTile extends ConsumerWidget {
         leading: const CircleAvatar(
           child: Icon(Icons.logout, size: 20),
         ),
-        title: Text('${txn.description.isEmpty ? 'Withdrawal' : txn.description}'),
+        title: Text(txn.description.isEmpty ? 'Withdrawal' : txn.description),
         subtitle: Text(Helpers.formatDateTime(txn.createdAt)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,

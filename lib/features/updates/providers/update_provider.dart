@@ -143,7 +143,7 @@ class UpdateController extends ChangeNotifier {
         child: AlertDialog(
           content: AnimatedBuilder(
             animation: this,
-            builder: (_, __) => Row(
+            builder: (context, _) => Row(
               children: [
                 SizedBox(
                   width: 28,
@@ -169,7 +169,8 @@ class UpdateController extends ChangeNotifier {
       ),
     );
     await updateNow(info, context: ctx);
-    if (ctx.mounted && _error == null) {
+    if (!ctx.mounted) return;
+    if (_error == null) {
       Helpers.showSnackBar(ctx, 'Update downloaded. Approve installation on your device.');
     }
     Navigator.of(ctx, rootNavigator: true).pop();
