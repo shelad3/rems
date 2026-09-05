@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "933865910240",
+    "project_id": "rems-2026",
+    "storage_bucket": "rems-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:933865910240:android:c6efb58a3a430f5841c585",
+        "android_client_info": {
+          "package_name": "com.nativecodex.rems"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "933865910240-s4sn30a53ev15gcnhgffvj7nueguphh4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjkrmDrNBiNLXozr1gL1OANVJoZD4ofdc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "933865910240-s4sn30a53ev15gcnhgffvj7nueguphh4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

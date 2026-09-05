@@ -1,0 +1,243 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['owner', 'manager'];
+    }
+
+    function isCaretaker() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'caretaker';
+    }
+
+    function isTenant() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'tenant';
+    }
+
+    function isApproved() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active';
+    }
+
+    function isOwnerOrAdmin() {
+      return isOwner() || isAdmin();
+    }
+
+    function isRegisteredRole() {
+      return request.resource.data.role in ['tenant', 'owner', 'caretaker', 'manager']
+        || (request.resource.data.role == 'admin'
+            && request.resource.data.email == 'sheldonramu8@gmail.com');
+    }
+
+    function isSelfEditableUserFields() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'fullName', 'phone', 'county', 'photoUrl', 'idNumber', 'companyName',
+        'businessRegistration', 'taxInfo', 'employmentStatus', 'occupation',
+        'emergencyContact', 'nextOfKin', 'assignedPropertyCode', 'invitationCode',
+        'currentPropertyId', 'currentUnitId', 'subscriptionTier',
+        'preferredLanguage', 'lastLoginAt', 'fcmToken', 'isVerified'
+      ]);
+    }
+
+    function isOwnerOfProperty(propertyId) {
+      return isOwner()
+        && get(/databases/$(database)/documents/properties/$(propertyId)).data.ownerId == request.auth.uid;
+    }
+
+    function isCaretakerOfProperty(propertyId) {
+      return isCaretaker()
+        && get(/databases/$(database)/documents/properties/$(propertyId)).data.managerId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if request.auth.uid == userId && isRegisteredRole();
+      allow update: if isAdmin()
+        || (request.auth.uid == userId && isSelfEditableUserFields());
+      allow delete: if isAdmin();
+    }
+
+    match /properties/{propertyId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwnerOrAdmin();
+      allow update: if isOwnerOfProperty(propertyId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /units/{unitId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwnerOrAdmin();
+      allow update: if isOwnerOrAdmin() || isCaretaker();
+      allow delete: if isAdmin();
+    }
+
+    match /buildings/{buildingId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwnerOrAdmin();
+      allow update: if isOwnerOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /access_requests/{requestId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.tenantId
+        || isAdmin()
+        || isOwnerOfProperty(resource.data.propertyId)
+        || isCaretakerOfProperty(resource.data.propertyId)
+      );
+      allow create: if isTenant();
+      allow update: if isAdmin()
+        || isOwnerOfProperty(resource.data.propertyId)
+        || isCaretakerOfProperty(resource.data.propertyId);
+      allow delete: if isAdmin();
+    }
+
+    match /inspections/{inspectionId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwnerOrAdmin() || isCaretaker();
+      allow update: if isOwnerOrAdmin() || isCaretaker();
+      allow delete: if isAdmin();
+    }
+
+    match /meter_readings/{readingId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwnerOrAdmin() || isCaretaker();
+      allow update: if isOwnerOrAdmin() || isCaretaker();
+      allow delete: if isAdmin();
+    }
+
+    match /leases/{leaseId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.tenantId
+        || isAdmin()
+        || isOwnerOfProperty(resource.data.propertyId)
+        || isCaretakerOfProperty(resource.data.propertyId)
+      );
+      allow create: if isOwnerOrAdmin() || isCaretaker();
+      allow update: if request.auth.uid == resource.data.tenantId
+        || isAdmin()
+        || isOwnerOfProperty(resource.data.propertyId)
+        || isCaretakerOfProperty(resource.data.propertyId);
+      allow delete: if isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.tenantId
+        || isAdmin()
+        || isOwnerOfProperty(resource.data.propertyId)
+        || isCaretakerOfProperty(resource.data.propertyId)
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /maintenance_tickets/{ticketId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAdmin()
+        || isOwnerOfProperty(resource.data.propertyId)
+        || isCaretakerOfProperty(resource.data.propertyId)
+        || request.auth.uid == resource.data.tenantId;
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated()
+        && request.auth.uid == resource.data.recipientId;
+      allow create: if isAuthenticated();
+      allow update: if request.auth.uid == resource.data.recipientId;
+      allow delete: if request.auth.uid == resource.data.recipientId || isAdmin();
+    }
+
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.senderId
+        || request.auth.uid == resource.data.receiverId
+      );
+      allow create: if isAuthenticated();
+      allow update: if request.auth.uid == resource.data.receiverId;
+      allow delete: if isAdmin();
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwnerOrAdmin() || isCaretaker();
+      allow update: if isOwnerOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /staff/{staffId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwnerOrAdmin();
+      allow update: if isOwnerOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /subscriptions/{subscriptionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /wallets/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && (!('balance' in request.resource.data) || request.resource.data.balance == 0);
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    match /mpesa_requests/{requestId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.tenantUid
+        || isOwnerOrAdmin()
+      );
+      allow create: if request.auth.uid == resource.data.tenantUid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /rent_invoices/{invoiceId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.tenantId
+        || isOwnerOrAdmin()
+        || isCaretakerOfProperty(resource.data.propertyId)
+      );
+      allow create: if request.auth.uid == resource.data.tenantId || isOwnerOrAdmin();
+      allow update: if request.auth.uid == resource.data.tenantId || isOwnerOrAdmin() || isCaretakerOfProperty(resource.data.propertyId);
+      allow delete: if isAdmin();
+    }
+
+    match /wallet_transactions/{txnId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId
+        || isAdmin()
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAdmin() || request.auth.uid == resource.data.userId;
+      allow delete: if isAdmin();
+    }
+  }
+}

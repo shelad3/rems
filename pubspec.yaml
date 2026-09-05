@@ -1,0 +1,54 @@
+name: rems
+description: "Real Estate Management System - A property operating system connecting tenants, caretakers, owners, and admins."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  firebase_core: ^3.12.1
+  firebase_auth: ^5.5.1
+  cloud_firestore: ^5.6.5
+  firebase_storage: ^12.4.4
+  firebase_messaging: ^15.2.4
+  firebase_analytics: ^11.4.4
+  firebase_crashlytics: ^4.3.4
+  firebase_remote_config: ^5.4.4
+  firebase_app_check: ^0.3.2+4
+  cloud_functions: ^5.3.4
+  flutter_riverpod: ^2.6.1
+  google_fonts: ^6.2.1
+  cached_network_image: ^3.4.1
+  image_picker: ^1.1.2
+  intl: ^0.20.2
+  shimmer: ^3.0.0
+  flutter_local_notifications: ^18.0.1
+  share_plus: ^10.1.4
+  url_launcher: ^6.3.1
+  path_provider: ^2.1.5
+  connectivity_plus: ^6.1.2
+  flutter_svg: ^2.0.17
+  google_sign_in: ^7.2.0
+  fl_chart: ^0.69.0
+  pdf: ^3.11.0
+  printing: ^5.13.0
+  permission_handler: ^11.3.0
+  google_mobile_ads: ^5.3.0
+  csv: ^6.0.0
+  open_file: ^3.5.3
+  http: ^1.2.0
+  flutter_dotenv: ^5.2.1
+  package_info_plus: ^9.0.1
+  open_filex: ^4.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
