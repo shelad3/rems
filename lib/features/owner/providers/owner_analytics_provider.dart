@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../data/models/property_model.dart';
 import '../../../data/repositories/property_repository.dart';
 import '../../../data/repositories/payment_repository.dart';
 import '../../../data/repositories/rent_invoice_repository.dart';
 import '../../../data/repositories/maintenance_repository.dart';
+import '../../../data/services/auth_service.dart';
 
 class OwnerMetrics {
   final double totalIncome;
@@ -25,13 +25,16 @@ class OwnerMetrics {
 }
 
 final ownerPropertiesProvider = StreamProvider<List<PropertyModel>>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return const Stream.empty();
-  return ref.watch(propertyRepositoryProvider).getPropertiesByOwner(user.uid);
+  final uid = ref.watch(currentUserProvider).value?.uid;
+  if (uid == null) return const Stream.empty();
+  return ref.watch(propertyRepositoryProvider).getPropertiesByOwner(uid);
 });
 
 final ownerAggregatedMetricsProvider = FutureProvider<OwnerMetrics>((ref) async {
-  final userId = FirebaseAuth.instance.currentUser!.uid;
+  final userId = ref.watch(currentUserProvider).value?.uid;
+  if (userId == null) {
+    throw StateError('No authenticated user');
+  }
   final properties = await ref.read(propertyRepositoryProvider).getPropertiesByOwner(userId).first;
 
   double totalIncome = 0;

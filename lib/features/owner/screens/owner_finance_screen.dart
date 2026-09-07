@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/helpers.dart';
 import '../../../data/models/property_model.dart';
 import '../../../data/models/payment_model.dart';
 import '../../../data/repositories/property_repository.dart';
 import '../../../data/repositories/payment_repository.dart';
+import '../../../data/services/auth_service.dart';
 import '../../../features/payments/widgets/payment_card.dart';
 
 final _financePeriodProvider = StateProvider<FinancePeriod>((ref) => FinancePeriod.thisMonth);
@@ -198,9 +198,9 @@ class _PropertyFinanceCard extends StatelessWidget {
 }
 
 final _ownerPropertiesProvider = StreamProvider<List<PropertyModel>>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return const Stream.empty();
-  return ref.watch(propertyRepositoryProvider).getPropertiesByOwner(user.uid);
+  final uid = ref.watch(currentUserProvider).value?.uid;
+  if (uid == null) return const Stream.empty();
+  return ref.watch(propertyRepositoryProvider).getPropertiesByOwner(uid);
 });
 
 final _allPropertiesPaymentsProvider = FutureProvider.family<List<PaymentModel>, List<String>>((ref, propertyIds) async {

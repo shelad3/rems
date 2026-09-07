@@ -236,5 +236,7 @@ final authStateProvider = StreamProvider<User?>((ref) {
 });
 
 final currentUserProvider = FutureProvider<UserModel?>((ref) async {
+  final authState = ref.watch(authStateProvider);
+  if (authState.value == null) return null;
   return ref.read(authServiceProvider).getCurrentUserModel();
 });

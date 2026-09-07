@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../../data/repositories/notification_repository.dart';
 import '../../../data/models/notification_model.dart';
+import '../../../data/repositories/notification_repository.dart';
+import '../../../data/services/auth_service.dart';
 
 final notificationsProvider = StreamProvider<List<NotificationModel>>((ref) {
-  final userId = FirebaseAuth.instance.currentUser?.uid;
-  if (userId == null) return const Stream.empty();
-  return ref.read(notificationRepositoryProvider).getNotifications(userId);
+  final uid = ref.watch(currentUserProvider).value?.uid;
+  if (uid == null) return const Stream.empty();
+  return ref.read(notificationRepositoryProvider).getNotifications(uid);
 });
 
 final unreadCountProvider = Provider<int>((ref) {
