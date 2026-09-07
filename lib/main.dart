@@ -8,6 +8,7 @@ import 'data/services/notification_service.dart';
 import 'data/models/property_model.dart';
 import 'features/auth/screens/splash_screen.dart';
 import 'features/auth/screens/welcome_screen.dart';
+import 'features/auth/screens/guest_shell.dart';
 import 'features/auth/screens/role_selection_screen.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/auth/screens/login_screen.dart';
@@ -18,6 +19,7 @@ import 'features/caretaker/screens/caretaker_shell.dart';
 import 'features/owner/screens/owner_shell.dart';
 import 'features/admin/screens/admin_shell.dart';
 import 'features/properties/screens/unit_detail_screen.dart';
+import 'features/properties/screens/add_unit_screen.dart';
 import 'features/payments/screens/tenant_payments_screen.dart';
 import 'features/payments/screens/caretaker_payments_screen.dart';
 import 'features/maintenance/screens/create_ticket_screen.dart';
@@ -32,9 +34,17 @@ import 'features/wallet/screens/wallet_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final firebaseService = FirebaseService();
-  await firebaseService.initialize();
+  try {
+    await firebaseService
+        .initialize()
+        .timeout(const Duration(seconds: 8));
+  } catch (_) {}
   final notificationService = NotificationService();
-  await notificationService.initialize();
+  try {
+    await notificationService
+        .initialize()
+        .timeout(const Duration(seconds: 5));
+  } catch (_) {}
   runApp(const ProviderScope(child: REMSApp()));
 }
 
@@ -57,6 +67,9 @@ class REMSApp extends ConsumerWidget {
             break;
           case AppRoutes.welcome:
             page = const WelcomeScreen();
+            break;
+          case AppRoutes.guestHome:
+            page = const GuestShell();
             break;
           case AppRoutes.roleSelection:
             page = const RoleSelectionScreen();
@@ -137,6 +150,10 @@ class REMSApp extends ConsumerWidget {
           case AppRoutes.unitDetail:
             final property = settings.arguments as PropertyModel;
             page = UnitDetailScreen(property: property);
+            break;
+          case AppRoutes.addUnit:
+            final property = settings.arguments as PropertyModel;
+            page = AddUnitScreen(property: property);
             break;
           case AppRoutes.addProperty:
             page = const AddPropertyScreen();

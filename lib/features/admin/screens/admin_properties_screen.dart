@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/property_repository.dart';
 import '../../../data/models/property_model.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../widgets/property_card.dart';
 import '../../../widgets/loading_widget.dart';
 import '../../../widgets/empty_state.dart';
+import '../widgets/admin_logout_button.dart';
 
 class AdminPropertiesScreen extends ConsumerWidget {
   const AdminPropertiesScreen({super.key});
@@ -12,7 +14,17 @@ class AdminPropertiesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('All Properties')),
+      appBar: AppBar(
+        title: const Text('All Properties'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Add Property',
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.addProperty),
+          ),
+          const AdminLogoutButton(),
+        ],
+      ),
       body: StreamBuilder<List<PropertyModel>>(
         stream: ref.watch(propertyRepositoryProvider).streamAllProperties(),
         builder: (context, snapshot) {
@@ -28,7 +40,14 @@ class AdminPropertiesScreen extends ConsumerWidget {
           }
           return ListView.builder(
             itemCount: properties.length,
-            itemBuilder: (_, i) => PropertyCard(property: properties[i]),
+            itemBuilder: (_, i) => PropertyCard(
+              property: properties[i],
+              onTap: () => Navigator.pushNamed(
+                context,
+                AppRoutes.unitDetail,
+                arguments: properties[i],
+              ),
+            ),
           );
         },
       ),

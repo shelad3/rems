@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/models/property_model.dart';
 import '../../../data/models/unit_model.dart';
 import '../../../data/repositories/property_repository.dart';
+import '../../../data/services/auth_service.dart';
 import '../../../widgets/unit_card.dart';
 import '../../../widgets/loading_widget.dart';
 import '../../../widgets/empty_state.dart';
@@ -37,7 +38,10 @@ class _CaretakerUnitsScreenState extends ConsumerState<CaretakerUnitsScreen> {
         ],
       ),
       body: StreamBuilder<List<PropertyModel>>(
-        stream: ref.watch(propertyRepositoryProvider).getProperties(),
+        stream: ref
+            .watch(propertyRepositoryProvider)
+            .getPropertiesByCaretaker(
+                ref.watch(currentUserProvider).valueOrNull?.uid ?? ''),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const ShimmerLoading();

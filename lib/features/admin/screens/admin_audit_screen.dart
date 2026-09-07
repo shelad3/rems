@@ -11,6 +11,7 @@ import '../../../data/models/audit_log_model.dart';
 import '../../../data/repositories/audit_log_repository.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading_widget.dart';
+import '../widgets/admin_logout_button.dart';
 
 class AdminAuditScreen extends ConsumerWidget {
   const AdminAuditScreen({super.key});
@@ -25,6 +26,7 @@ class AdminAuditScreen extends ConsumerWidget {
             icon: const Icon(Icons.download_outlined),
             onPressed: () => _exportLogs(context, ref),
           ),
+          const AdminLogoutButton(),
         ],
       ),
       body: StreamBuilder<List<AuditLogModel>>(

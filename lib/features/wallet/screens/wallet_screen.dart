@@ -11,6 +11,7 @@ import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading_widget.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../providers/wallet_provider.dart';
+import 'wallet_deposit_screen.dart';
 
 class WalletScreen extends ConsumerWidget {
   const WalletScreen({super.key});
@@ -56,7 +57,7 @@ class WalletScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _showDepositDialog(context, ref, uid),
+                    onPressed: () => _showDepositAmount(context, ref, uid),
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text('Deposit'),
                   ),
@@ -102,7 +103,7 @@ class WalletScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showDepositDialog(
+  Future<void> _showDepositAmount(
       BuildContext context, WidgetRef ref, String uid) async {
     final controller = TextEditingController();
     final amount = await showDialog<double>(
@@ -125,23 +126,19 @@ class WalletScreen extends ConsumerWidget {
           ElevatedButton(
             onPressed: () => Navigator.pop(
                 context, double.tryParse(controller.text.trim()) ?? 0),
-            child: const Text('Deposit'),
+            child: const Text('Continue'),
           ),
         ],
       ),
     );
     if (amount == null || amount <= 0) return;
-    final balance =
-        await ref.read(walletProvider.notifier).deposit(uid: uid, amount: amount);
     if (!context.mounted) return;
-    if (balance != null) {
-      Helpers.showSnackBar(
-        context,
-        'Top-up successful. Balance: ${Helpers.formatCurrency(balance)}',
-      );
-    } else {
-      Helpers.showSnackBar(context, 'Deposit failed', isError: true);
-    }
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WalletDepositScreen(uid: uid, amount: amount),
+      ),
+    );
   }
 
   Future<void> _showWithdrawDialog(
@@ -358,6 +355,8 @@ class _TransactionTile extends StatelessWidget {
         return Icons.workspace_premium;
       case 'deposit':
         return Icons.savings;
+      case 'topup':
+        return Icons.savings;
       case 'withdrawal':
         return Icons.logout;
       case 'quiz_reward':
@@ -377,6 +376,8 @@ class _TransactionTile extends StatelessWidget {
       case 'premium':
         return 'Premium subscription';
       case 'deposit':
+        return 'Wallet top-up';
+      case 'topup':
         return 'Wallet top-up';
       case 'withdrawal':
         return 'Withdrawal to M-Pesa';
@@ -438,8 +439,9 @@ class _WithdrawalTile extends ConsumerWidget {
             const SizedBox(width: 8),
             FilledButton(
               onPressed: () async {
-                final ok =
+                final message =
                     await ref.read(walletProvider.notifier).processWithdrawal(txn.id);
+                final ok = message == null;
                 if (ok) {
                   final actor = ref.read(authServiceProvider).currentUser?.uid ?? '';
                   ref.read(auditLogRepositoryProvider).log(
@@ -450,6 +452,7 @@ class _WithdrawalTile extends ConsumerWidget {
                     metadata: {
                       'userId': txn.userId,
                       'amount': txn.amount,
+                      'status': 'paid_out',
                     },
                   );
                   ref.read(pushServiceProvider).send(
@@ -463,7 +466,7 @@ class _WithdrawalTile extends ConsumerWidget {
                 if (!context.mounted) return;
                 Helpers.showSnackBar(
                   context,
-                  ok ? 'Withdrawal approved & paid out' : 'Failed to process',
+                  ok ? 'Withdrawal approved & paid out' : message,
                   isError: !ok,
                 );
               },

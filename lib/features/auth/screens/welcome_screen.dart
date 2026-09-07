@@ -66,7 +66,7 @@ class WelcomeScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () {
-                  Navigation.pushClearingStack(context, AppRoutes.tenantProperties);
+                  Navigation.pushClearingStack(context, AppRoutes.guestHome);
                 },
                 child: const Text(
                   'Continue as Guest',

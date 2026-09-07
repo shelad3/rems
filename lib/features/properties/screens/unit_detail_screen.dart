@@ -8,20 +8,54 @@ import '../../../data/models/property_model.dart';
 import '../../../data/models/unit_model.dart';
 import '../../../data/models/access_request_model.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../data/models/user_model.dart';
 import '../../../data/repositories/property_repository.dart';
 import '../../../data/repositories/request_repository.dart';
+import '../../../data/repositories/audit_log_repository.dart';
 import '../../../widgets/loading_widget.dart';
+import 'add_unit_screen.dart';
+import 'add_property_screen.dart';
+import 'edit_unit_screen.dart';
 
 class UnitDetailScreen extends ConsumerWidget {
   final PropertyModel property;
   const UnitDetailScreen({super.key, required this.property});
 
+  bool _canManage(UserModel? user) {
+    final role = user?.role;
+    return role == 'owner' || role == 'manager' || role == 'admin';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider).valueOrNull;
+    final canManage = _canManage(user);
     return Scaffold(
-      appBar: AppBar(title: Text(property.name)),
+      appBar: AppBar(
+        title: Text(property.name),
+        actions: [
+          if (canManage)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit Property',
+              onPressed: () async {
+                final changed = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AddPropertyScreen(property: property),
+                  ),
+                );
+                if (changed == true && context.mounted) {
+                  Navigator.pop(context, true);
+                }
+              },
+            ),
+        ],
+      ),
       body: StreamBuilder<List<UnitModel>>(
-        stream: ref.watch(propertyRepositoryProvider).getAvailableUnits(property.propertyId),
+        stream: canManage
+            ? ref.watch(propertyRepositoryProvider).getUnitsByProperty(property.propertyId)
+            : ref.watch(propertyRepositoryProvider).getAvailableUnits(property.propertyId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const ShimmerLoading();
@@ -31,30 +65,114 @@ class UnitDetailScreen extends ConsumerWidget {
           }
           final units = snapshot.data ?? [];
           if (units.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.home_outlined, size: 64, color: AppColors.textHint),
-                  SizedBox(height: 16),
-                  Text('No available units', style: TextStyle(color: AppColors.textSecondary)),
+                  const Icon(Icons.home_outlined, size: 64, color: AppColors.textHint),
+                  const SizedBox(height: 16),
+                  const Text('No units yet', style: TextStyle(color: AppColors.textSecondary)),
+                  if (canManage) ...[
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: () => _openAddUnit(context),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add the first unit'),
+                    ),
+                  ],
                 ],
               ),
             );
           }
           return ListView.builder(
             itemCount: units.length,
-            itemBuilder: (_, i) => _UnitDetailCard(unit: units[i]),
+            itemBuilder: (_, i) => _UnitDetailCard(
+              unit: units[i],
+              canManage: canManage,
+              onEdit: canManage ? () => _openEditUnit(context, units[i]) : null,
+              onDelete: canManage
+                  ? () => _deleteUnit(context, ref, units[i])
+                  : null,
+            ),
           );
         },
       ),
+      floatingActionButton: canManage
+          ? FloatingActionButton.extended(
+              onPressed: () => _openAddUnit(context),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Unit'),
+            )
+          : null,
     );
+  }
+
+  void _openAddUnit(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => AddUnitScreen(property: property)),
+    );
+  }
+
+  void _openEditUnit(BuildContext context, UnitModel unit) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditUnitScreen(property: property, unit: unit),
+      ),
+    );
+  }
+
+  void _deleteUnit(BuildContext context, WidgetRef ref, UnitModel unit) {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Unit?'),
+        content: Text('Delete unit ${unit.unitNumber} from this property?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    ).then((confirmed) async {
+      if (confirmed != true) return;
+      final repo = ref.read(propertyRepositoryProvider);
+      await repo.deleteUnit(unit.unitId);
+      await repo.updateUnitsCount(
+        property.propertyId,
+        (property.totalUnits - 1).clamp(0, 1000000).toInt(),
+        (property.availableUnits - (unit.occupied ? 0 : 1)).clamp(0, 1000000).toInt(),
+      );
+      final actor = ref.read(authServiceProvider).currentUser?.uid ?? '';
+      ref.read(auditLogRepositoryProvider).log(
+        actorId: actor,
+        action: 'unit_deleted',
+        targetType: 'unit',
+        targetId: unit.unitId,
+        metadata: {'propertyId': property.propertyId},
+      );
+      if (context.mounted) {
+        Helpers.showSnackBar(context, 'Unit deleted');
+      }
+    });
   }
 }
 
 class _UnitDetailCard extends ConsumerWidget {
   final UnitModel unit;
-  const _UnitDetailCard({required this.unit});
+  final bool canManage;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  const _UnitDetailCard({
+    required this.unit,
+    this.canManage = false,
+    this.onEdit,
+    this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -87,6 +205,18 @@ class _UnitDetailCard extends ConsumerWidget {
                     ],
                   ),
                 ),
+                if (unit.occupied)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withAlpha(20),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text('OCCUPIED',
+                        style: TextStyle(fontSize: 10,
+                            color: AppColors.warning,
+                            fontWeight: FontWeight.w600)),
+                  ),
               ],
             ),
             const Divider(height: 32),
@@ -103,22 +233,44 @@ class _UnitDetailCard extends ConsumerWidget {
                 _InfoChip(icon: Icons.merge_type, label: unit.unitType),
                 const SizedBox(width: 8),
                 _InfoChip(icon: Icons.bed_outlined, label: '${unit.bedrooms} Bed'),
-                const SizedBox(width: 8),
-                _InfoChip(icon: Icons.square_foot, label: 'Standard'),
               ],
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _requestAccess(context, ref),
-                icon: const Icon(Icons.send_outlined),
-                label: const Text('Request Access'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+            if (canManage)
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onEdit,
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Edit'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                      label: const Text('Delete', style: TextStyle(color: AppColors.error)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _requestAccess(context, ref),
+                  icon: const Icon(Icons.send_outlined),
+                  label: const Text('Request Access'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

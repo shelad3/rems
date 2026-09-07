@@ -5,6 +5,8 @@ import '../../../core/utils/helpers.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/repositories/audit_log_repository.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../core/routes/app_routes.dart';
+import '../../../core/routes/navigation.dart';
 import '../../../data/services/push_service.dart';
 import '../../../data/models/user_model.dart';
 import '../../../widgets/loading_widget.dart';
@@ -38,6 +40,16 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
             icon: const Icon(Icons.search),
             tooltip: 'Search Users',
             onPressed: () => setState(() => _searchFocused = true),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: AppColors.error),
+            tooltip: 'Sign Out',
+            onPressed: () async {
+              await ref.read(authServiceProvider).signOut();
+              if (context.mounted) {
+                Navigation.pushClearingStack(context, AppRoutes.welcome);
+              }
+            },
           ),
         ],
         bottom: PreferredSize(

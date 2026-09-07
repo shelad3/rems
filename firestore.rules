@@ -70,21 +70,23 @@ service cloud.firestore {
     }
 
     match /properties/{propertyId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isOwnerOrAdmin();
       allow update: if isOwnerOfProperty(propertyId) || isAdmin();
       allow delete: if isAdmin();
     }
 
     match /units/{unitId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isOwnerOrAdmin();
-      allow update: if isOwnerOrAdmin() || isCaretaker();
-      allow delete: if isAdmin();
+      allow update: if isOwnerOfProperty(resource.data.propertyId)
+        || isAdmin()
+        || isCaretakerOfProperty(resource.data.propertyId);
+      allow delete: if isAdmin() || isOwnerOfProperty(resource.data.propertyId);
     }
 
     match /buildings/{buildingId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isOwnerOrAdmin();
       allow update: if isOwnerOrAdmin();
       allow delete: if isAdmin();

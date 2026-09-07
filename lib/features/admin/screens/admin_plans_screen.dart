@@ -9,6 +9,7 @@ import '../../../data/repositories/audit_log_repository.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../widgets/loading_widget.dart';
 import '../../../widgets/empty_state.dart';
+import '../widgets/admin_logout_button.dart';
 
 class AdminPlansScreen extends ConsumerWidget {
   const AdminPlansScreen({super.key});
@@ -24,6 +25,7 @@ class AdminPlansScreen extends ConsumerWidget {
             tooltip: 'Add Plan',
             onPressed: () => _openPlanForm(context, ref),
           ),
+          const AdminLogoutButton(),
         ],
       ),
       body: StreamBuilder<List<SubscriptionPlanModel>>(

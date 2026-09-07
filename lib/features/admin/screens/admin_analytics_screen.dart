@@ -7,6 +7,7 @@ import '../../../data/repositories/property_repository.dart';
 import '../../../data/repositories/payment_repository.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/models/payment_model.dart';
+import '../widgets/admin_logout_button.dart';
 
 final _adminStatsProvider = FutureProvider<AdminStats>((ref) async {
   final users = await ref.read(userRepositoryProvider).getAllUsers();
@@ -80,7 +81,10 @@ class AdminAnalyticsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(_adminStatsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Analytics')),
+      appBar: AppBar(
+        title: const Text('Analytics'),
+        actions: const [AdminLogoutButton()],
+      ),
       body: statsAsync.when(
         data: (stats) => SingleChildScrollView(
           padding: const EdgeInsets.all(16),

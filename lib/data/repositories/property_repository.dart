@@ -33,6 +33,16 @@ class PropertyRepository {
             .toList());
   }
 
+  /// Properties assigned to a caretaker (via managerId/caretakerId).
+  Stream<List<PropertyModel>> getPropertiesByCaretaker(String caretakerId) {
+    return _firebase.propertiesCollection
+        .where('managerId', isEqualTo: caretakerId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => PropertyModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+            .toList());
+  }
+
   Stream<PropertyModel?> getPropertyById(String propertyId) {
     return _firebase.propertiesCollection.doc(propertyId).snapshots().map(
       (snapshot) => snapshot.exists
@@ -78,6 +88,39 @@ class PropertyRepository {
 
   Future<void> createProperty(PropertyModel property) async {
     await _firebase.propertiesCollection.doc(property.propertyId).set(property.toMap());
+  }
+
+  Future<void> createUnit(UnitModel unit) async {
+    await _firebase.unitsCollection.doc(unit.unitId).set(unit.toMap());
+  }
+
+  Future<void> updateUnit(String unitId, Map<String, dynamic> data) async {
+    await _firebase.unitsCollection.doc(unitId).update(data);
+  }
+
+  Future<void> deleteUnit(String unitId) async {
+    await _firebase.unitsCollection.doc(unitId).delete();
+  }
+
+  Future<void> assignCaretaker(
+      String propertyId, String? caretakerId) async {
+    await _firebase.propertiesCollection.doc(propertyId).update({
+      'managerId': caretakerId,
+      'caretakerId': caretakerId,
+    });
+  }
+
+  Future<void> assignOwner(String propertyId, String ownerId) async {
+    await _firebase.propertiesCollection
+        .doc(propertyId)
+        .update({'ownerId': ownerId});
+  }
+
+  Future<void> updateUnitsCount(String propertyId, int totalUnits, int availableUnits) async {
+    await _firebase.propertiesCollection.doc(propertyId).update({
+      'totalUnits': totalUnits,
+      'availableUnits': availableUnits,
+    });
   }
 
   Future<void> updateProperty(String propertyId, Map<String, dynamic> data) async {

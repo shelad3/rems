@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/routes/navigation.dart';
+import '../../../data/models/user_model.dart';
 import '../../../data/services/auth_service.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -21,21 +22,34 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   Future<void> _init() async {
-    await Future.delayed(const Duration(seconds: 1));
-    _checkAuth();
+    try {
+      await Future.delayed(const Duration(seconds: 1));
+      await _checkAuth();
+    } catch (_) {
+      if (!mounted) return;
+      _navigateTo(AppRoutes.welcome);
+    }
   }
 
-  void _checkAuth() {
+  Future<void> _checkAuth() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      _routeToDashboard();
+      await _routeToDashboard();
     } else {
       _navigateTo(AppRoutes.welcome);
     }
   }
 
   Future<void> _routeToDashboard() async {
-    final userModel = await ref.read(authServiceProvider).getCurrentUserModel();
+    UserModel? userModel;
+    try {
+      userModel = await ref
+          .read(authServiceProvider)
+          .getCurrentUserModel()
+          .timeout(const Duration(seconds: 4));
+    } catch (_) {
+      userModel = null;
+    }
     if (!mounted) return;
     if (userModel == null) {
       _navigateTo(AppRoutes.welcome);

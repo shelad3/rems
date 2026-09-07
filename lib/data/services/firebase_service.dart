@@ -29,11 +29,13 @@ class FirebaseService {
     );
 
     try {
-      await FirebaseAppCheck.instance.activate(
-        androidProvider: kDebugMode
-            ? AndroidProvider.debug
-            : AndroidProvider.playIntegrity,
-      );
+      await FirebaseAppCheck.instance
+          .activate(
+            androidProvider: kDebugMode
+                ? AndroidProvider.debug
+                : AndroidProvider.playIntegrity,
+          )
+          .timeout(const Duration(seconds: 4));
     } catch (_) {}
 
     _initialized = true;

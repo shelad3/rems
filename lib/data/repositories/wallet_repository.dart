@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import '../models/wallet_model.dart';
 import '../models/wallet_transaction_model.dart';
 import '../services/firebase_service.dart';
+import '../services/mpesa_service.dart';
 
 class WalletRepository {
   final FirebaseService _firebase = FirebaseService();
@@ -164,55 +167,36 @@ class WalletRepository {
       throw Exception('Insufficient balance');
     }
     final doc = _txnRef.doc();
-    await doc.set(
-      WalletTransactionModel(
-        id: doc.id,
-        userId: uid,
-        type: 'debit',
-        source: 'withdrawal',
-        amount: amount,
-        balanceAfter: wallet.balance,
-        status: 'pending',
-        description: '$description ${phone == null ? '' : '(to $phone)'}'.trim(),
-      ).toMap()
-        ..['createdAt'] = FieldValue.serverTimestamp(),
-    );
+    final txn = WalletTransactionModel(
+      id: doc.id,
+      userId: uid,
+      type: 'debit',
+      source: 'withdrawal',
+      amount: amount,
+      balanceAfter: wallet.balance,
+      status: 'pending',
+      description: '$description ${phone == null ? '' : '(to $phone)'}'.trim(),
+    ).toMap()
+      ..['createdAt'] = FieldValue.serverTimestamp();
+    if (phone != null && phone.trim().isNotEmpty) {
+      txn['phone'] = phone.trim();
+      txn['mpesaPhone'] = phone.trim();
+    }
+    await doc.set(txn);
   }
 
-  Future<bool> processWithdrawal(String txnId) async {
-    final txnRef = _txnRef.doc(txnId);
-    final snap = await txnRef.get();
-    if (!snap.exists) return false;
-    final txn = WalletTransactionModel.fromMap(
-        snap.data() as Map<String, dynamic>, txnId);
-    if (txn.status != 'pending') return false;
-
+  Future<String?> processWithdrawal(String txnId) async {
     try {
-      await _firebase.firestore.runTransaction((t) async {
-        final wRef = _walletRef(txn.userId);
-        final wSnap = await t.get(wRef);
-        if (!wSnap.exists) {
-          throw Exception('Wallet not found');
-        }
-        final w = WalletModel.fromMap(wSnap.data() as Map<String, dynamic>, txn.userId);
-        if (w.balance < txn.amount) {
-          throw Exception('Insufficient balance');
-        }
-        final newBalance = w.balance - txn.amount;
-        t.update(wRef, {
-          'balance': newBalance,
-          'totalDebited': w.totalDebited + txn.amount,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-        t.update(txnRef, {
-          'status': 'completed',
-          'balanceAfter': newBalance,
-          'processedAt': FieldValue.serverTimestamp(),
-        });
-      });
-      return true;
-    } catch (_) {
-      return false;
+      final response = await http.post(
+        Uri.parse(MpesaService().callbackUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'action': 'b2c', 'txnId': txnId}),
+      );
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200 && body['ok'] == true) return null;
+      return (body['reason'] ?? 'Withdrawal payout failed') as String;
+    } catch (e) {
+      return 'Could not reach payment server: $e';
     }
   }
 

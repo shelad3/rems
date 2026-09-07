@@ -1,11 +1,31 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../data/repositories/property_repository.dart';
 import '../../../data/models/property_model.dart';
+import '../../../data/services/auth_service.dart';
 import '../../../widgets/property_card.dart';
 import '../../../widgets/loading_widget.dart';
 import '../../../widgets/empty_state.dart';
+
+final _myPropertiesProvider = StreamProvider.autoDispose.family<List<PropertyModel>, String>(
+  (ref, uid) {
+    final repo = ref.watch(propertyRepositoryProvider);
+    if (uid.isEmpty) return repo.streamAllProperties();
+    return Stream.multi((controller) {
+      final subs = [
+        repo.getPropertiesByOwner(uid).listen(controller.add, onError: controller.addError),
+        repo.getPropertiesByManager(uid).listen(controller.add, onError: controller.addError),
+      ];
+      controller.onCancel = () {
+        for (final s in subs) {
+          s.cancel();
+        }
+      };
+    });
+  },
+);
 
 class OwnerPropertiesScreen extends ConsumerWidget {
   const OwnerPropertiesScreen({super.key});
@@ -13,6 +33,8 @@ class OwnerPropertiesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     void openAddProperty() => Navigator.pushNamed(context, AppRoutes.addProperty);
+
+    final uid = ref.watch(currentUserProvider).valueOrNull?.uid ?? '';
 
     return Scaffold(
       appBar: AppBar(
@@ -25,16 +47,10 @@ class OwnerPropertiesScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: StreamBuilder<List<PropertyModel>>(
-        stream: ref.watch(propertyRepositoryProvider).streamAllProperties(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const ShimmerLoading();
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          final properties = snapshot.data ?? [];
+      body: ref.watch(_myPropertiesProvider(uid)).when(
+        loading: () => const ShimmerLoading(),
+        error: (e, _) => Center(child: Text('Error: $e')),
+        data: (properties) {
           if (properties.isEmpty) {
             return EmptyStateWidget(
               icon: Icons.home_work_outlined,
