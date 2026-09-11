@@ -181,6 +181,17 @@ class OwnerOverviewScreen extends ConsumerWidget {
               )),
             ],
           ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _ActionCard(
+                icon: Icons.verified_user_outlined,
+                label: 'Tenants',
+                onTap: () => Navigator.pushNamed(
+                    context, AppRoutes.ownerAccessRequests),
+              )),
+            ],
+          ),
           if (user?.subscriptionTier == 'free') ...[
             const SizedBox(height: 20),
             Container(

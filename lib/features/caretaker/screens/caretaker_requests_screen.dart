@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/helpers.dart';
 import '../../../data/repositories/request_repository.dart';
 import '../../../data/repositories/property_repository.dart';
+import '../../../data/repositories/lease_repository.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/models/property_model.dart';
 import '../../../data/models/access_request_model.dart';
@@ -130,13 +131,41 @@ class _PropertySection extends ConsumerWidget {
   }
 
   Future<void> _handleApprove(BuildContext context, AccessRequestModel request, WidgetRef ref) async {
-    await ref.read(requestRepositoryProvider).updateRequest(request.requestId, {
-      'status': 'approved',
-      'reviewedBy': ref.read(authServiceProvider).currentUser?.uid,
-      'reviewedAt': Timestamp.now(),
-    });
-    if (context.mounted) {
-      Helpers.showSnackBar(context, 'Request approved');
+    final reviewerId = ref.read(authServiceProvider).currentUser?.uid;
+    if (reviewerId == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Approve this tenant?'),
+        content: const Text(
+            'This will create a lease, occupy the unit, and assign the tenant.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !context.mounted) return;
+
+    try {
+      await ref.read(leaseRepositoryProvider).approveRequest(
+            request: request,
+            reviewedBy: reviewerId,
+          );
+      if (context.mounted) {
+        Helpers.showSnackBar(context, 'Tenant approved — lease created');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Helpers.showSnackBar(context, 'Approval failed: $e', isError: true);
+      }
     }
   }
 

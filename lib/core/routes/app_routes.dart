@@ -53,4 +53,5 @@ class AppRoutes {  static const String splash = '/';
   static const String ownerCompare = '/owner/compare';
   static const String caretakerApplications = '/caretaker/applications';
   static const String assignmentRequests = '/owner/assignments';
+  static const String ownerAccessRequests = '/owner/access-requests';
 }

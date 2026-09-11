@@ -20,6 +20,7 @@ import 'features/caretaker/screens/caretaker_shell.dart';
 import 'features/caretaker/screens/caretaker_applications_screen.dart';
 import 'features/owner/screens/owner_shell.dart';
 import 'features/owner/screens/assignment_requests_screen.dart';
+import 'features/owner/screens/owner_access_requests_screen.dart';
 import 'features/admin/screens/admin_shell.dart';
 import 'features/properties/screens/unit_detail_screen.dart';
 import 'features/properties/screens/add_unit_screen.dart';
@@ -203,6 +204,9 @@ class REMSApp extends ConsumerWidget {
             break;
           case AppRoutes.assignmentRequests:
             page = const AssignmentRequestsScreen();
+            break;
+          case AppRoutes.ownerAccessRequests:
+            page = const OwnerAccessRequestsScreen();
             break;
           default:
             page = const SplashScreen();
