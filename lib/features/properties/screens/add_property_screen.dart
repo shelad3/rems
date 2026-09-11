@@ -70,6 +70,7 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
 
   String? _ownerId;
   String? _caretakerId;
+  bool _caretakerHiringOpen = false;
 
   bool _saving = false;
 
@@ -90,6 +91,7 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
       _coverImageUrl = p.coverImageUrl;
       _ownerId = p.ownerId;
       _caretakerId = p.caretakerId;
+      _caretakerHiringOpen = p.caretakerHiringOpen;
       if (p.startingRent > 0) {
         _startingRentController.text = p.startingRent.toStringAsFixed(0);
       }
@@ -174,6 +176,7 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
           if (_isAdmin) 'ownerId': _ownerId,
           if (widget.property?.caretakerId != _caretakerId)
             'caretakerId': _caretakerId,
+          'caretakerHiringOpen': _caretakerHiringOpen,
           'coverImageUrl': coverUrl,
           'startingRent': startingRent,
         });
@@ -207,6 +210,7 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
         amenities: _amenities.toList(),
         coverImageUrl: coverUrl,
         startingRent: startingRent,
+        caretakerHiringOpen: _caretakerHiringOpen,
         createdBy: user.uid,
         createdByRole: (_isAdmin && _ownerId != null) ? 'owner' : user.role,
       );
@@ -395,6 +399,13 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
                     }),
                   );
                 }).toList(),
+              ),
+              SwitchListTile(
+                title: const Text('Open for Caretaker Hiring'),
+                subtitle: const Text(
+                    'Allow caretakers to apply for this property from the app'),
+                value: _caretakerHiringOpen,
+                onChanged: (v) => setState(() => _caretakerHiringOpen = v),
               ),
               if (!widget.isEdit) ...[
                 const SizedBox(height: 28),

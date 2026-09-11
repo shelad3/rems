@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/property_model.dart';
 import '../models/unit_model.dart';
@@ -112,6 +113,48 @@ class PropertyRepository {
     await _firebase.propertiesCollection
         .doc(propertyId)
         .update({'ownerId': ownerId});
+  }
+
+  Future<void> appointCaretaker({
+    required String propertyId,
+    required String caretakerId,
+    required String applicationId,
+    String? reviewedBy,
+  }) async {
+    await _firebase.firestore.runTransaction((txn) async {
+      final propRef = _firebase.propertiesCollection.doc(propertyId);
+      final appRef = _firebase.caretakerApplicationsCollection.doc(applicationId);
+      txn.update(propRef, {'caretakerId': caretakerId, 'caretakerHiringOpen': false});
+      txn.update(appRef, {
+        'status': 'approved',
+        'reviewedBy': reviewedBy,
+        'reviewedAt': Timestamp.now(),
+      });
+    });
+  }
+
+  Future<void> applyAssignment({
+    required String assignmentId,
+    required String propertyId,
+    required String type,
+    required String userId,
+    String? reviewedBy,
+  }) async {
+    await _firebase.firestore.runTransaction((txn) async {
+      final propRef = _firebase.propertiesCollection.doc(propertyId);
+      final assRef =
+          _firebase.propertyAssignmentsCollection.doc(assignmentId);
+      if (type == 'owner_assignment') {
+        txn.update(propRef, {'ownerId': userId});
+      } else {
+        txn.update(propRef, {'managerId': userId});
+      }
+      txn.update(assRef, {
+        'status': 'approved',
+        'reviewedBy': reviewedBy,
+        'reviewedAt': Timestamp.now(),
+      });
+    });
   }
 
   Future<void> updateUnitsCount(String propertyId, int totalUnits, int availableUnits) async {

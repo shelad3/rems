@@ -163,6 +163,24 @@ class OwnerOverviewScreen extends ConsumerWidget {
               )),
             ],
           ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _ActionCard(
+                icon: Icons.person_search_outlined,
+                label: 'Caretakers',
+                onTap: () => Navigator.pushNamed(
+                    context, AppRoutes.caretakerApplications),
+              )),
+              const SizedBox(width: 12),
+              Expanded(child: _ActionCard(
+                icon: Icons.swap_horiz_outlined,
+                label: 'Assignments',
+                onTap: () => Navigator.pushNamed(
+                    context, AppRoutes.assignmentRequests),
+              )),
+            ],
+          ),
           if (user?.subscriptionTier == 'free') ...[
             const SizedBox(height: 20),
             Container(

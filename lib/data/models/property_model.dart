@@ -17,6 +17,7 @@ class PropertyModel {
   final int totalUnits;
   final int availableUnits;
   final double startingRent;
+  final bool caretakerHiringOpen;
   final String? createdBy;
   final String? createdByRole;
 
@@ -37,6 +38,7 @@ class PropertyModel {
     this.totalUnits = 0,
     this.availableUnits = 0,
     this.startingRent = 0,
+    this.caretakerHiringOpen = false,
     this.createdBy,
     this.createdByRole,
   })  : amenities = amenities ?? const [],
@@ -59,6 +61,7 @@ class PropertyModel {
         'totalUnits': totalUnits,
         'availableUnits': availableUnits,
         'startingRent': startingRent,
+        'caretakerHiringOpen': caretakerHiringOpen,
         'createdBy': createdBy,
         'createdByRole': createdByRole,
       };
@@ -81,12 +84,13 @@ class PropertyModel {
       totalUnits: map['totalUnits'] ?? 0,
       availableUnits: map['availableUnits'] ?? 0,
       startingRent: (map['startingRent'] ?? 0).toDouble(),
+      caretakerHiringOpen: map['caretakerHiringOpen'] ?? false,
       createdBy: map['createdBy'],
       createdByRole: map['createdByRole'],
     );
   }
 
-  PropertyModel copyWith({int? totalUnits, int? availableUnits, String? status, String? propertyType, List<String>? amenities, String? ownerId, String? managerId, String? caretakerId, double? startingRent}) {
+  PropertyModel copyWith({int? totalUnits, int? availableUnits, String? status, String? propertyType, List<String>? amenities, String? ownerId, String? managerId, String? caretakerId, double? startingRent, bool? caretakerHiringOpen}) {
     return PropertyModel(
       propertyId: propertyId,
       ownerId: ownerId ?? this.ownerId,
@@ -104,6 +108,7 @@ class PropertyModel {
       totalUnits: totalUnits ?? this.totalUnits,
       availableUnits: availableUnits ?? this.availableUnits,
       startingRent: startingRent ?? this.startingRent,
+      caretakerHiringOpen: caretakerHiringOpen ?? this.caretakerHiringOpen,
       createdBy: createdBy,
       createdByRole: createdByRole,
     );

@@ -73,11 +73,18 @@ class CaretakerDashboardScreen extends ConsumerWidget {
             child: _PendingRequestsPreview(),
           ),
           const SizedBox(height: 20),
-          const Text('Open Maintenance', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('Find Caretaker Jobs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          SizedBox(
-            height: 200,
-            child: _MaintenancePreview(),
+          Card(
+            margin: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.work_outline, color: AppColors.success),
+              title: const Text('Browse open caretaker jobs'),
+              subtitle: const Text('Apply to properties looking for a caretaker',
+                  style: TextStyle(fontSize: 12)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.pushNamed(context, AppRoutes.caretakerJobs),
+            ),
           ),
         ],
       ),
@@ -88,15 +95,20 @@ class CaretakerDashboardScreen extends ConsumerWidget {
 class _SummaryRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pendingAsync = ref.watch(_allPendingStreamProvider);
-    final propertiesAsync = ref.watch(_allPropertiesStreamProvider);
+    final propertiesAsync = ref.watch(_caretakerPropertiesProvider);
+    final properties = propertiesAsync.valueOrNull ?? const <PropertyModel>[];
+
+    var pending = 0;
+    for (final p in properties) {
+      pending += ref.watch(_pendingByPropertyProvider(p.propertyId)).valueOrNull?.length ?? 0;
+    }
 
     return Row(
       children: [
         Expanded(child: _SummaryCard(
           icon: Icons.person_add_outlined,
           label: 'Pending',
-          value: '${pendingAsync.valueOrNull?.length ?? 0}',
+          value: '$pending',
           color: AppColors.warning,
         )),
         const SizedBox(width: 12),
@@ -110,14 +122,14 @@ class _SummaryRow extends ConsumerWidget {
         Expanded(child: _SummaryCard(
           icon: Icons.build_outlined,
           label: 'Tickets',
-          value: '${_countOpenTickets(ref, propertiesAsync.valueOrNull ?? [])}',
+          value: '${_countOpenTickets(ref, properties)}',
           color: AppColors.info,
         )),
         const SizedBox(width: 12),
         Expanded(child: _SummaryCard(
           icon: Icons.home_outlined,
           label: 'Vacant',
-          value: '${_countVacantUnits(ref, propertiesAsync.valueOrNull ?? [])}',
+          value: '${_countVacantUnits(ref, properties)}',
           color: AppColors.success,
         )),
       ],
@@ -143,12 +155,15 @@ class _SummaryRow extends ConsumerWidget {
   }
 }
 
-final _allPendingStreamProvider = StreamProvider<List<AccessRequestModel>>((ref) {
-  return ref.watch(requestRepositoryProvider).getAllPendingRequests();
+final _caretakerPropertiesProvider = StreamProvider<List<PropertyModel>>((ref) {
+  final uid = ref.watch(currentUserProvider).valueOrNull?.uid ?? '';
+  if (uid.isEmpty) return const Stream.empty();
+  return ref.watch(propertyRepositoryProvider).getPropertiesByCaretaker(uid);
 });
 
-final _allPropertiesStreamProvider = StreamProvider<List<PropertyModel>>((ref) {
-  return ref.watch(propertyRepositoryProvider).streamAllProperties();
+final _pendingByPropertyProvider =
+    StreamProvider.family<List<AccessRequestModel>, String>((ref, propertyId) {
+  return ref.watch(requestRepositoryProvider).getPendingRequestsByProperty(propertyId);
 });
 
 final _openTicketsProvider = StreamProvider.family<List<MaintenanceTicketModel>, String>((ref, propertyId) {
@@ -194,34 +209,25 @@ class _SummaryCard extends StatelessWidget {
 class _PendingRequestsPreview extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return StreamBuilder<List<AccessRequestModel>>(
-      stream: ref.watch(requestRepositoryProvider).getAllPendingRequests(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError || !snapshot.hasData) {
-          return const Center(child: Text('No pending requests', style: TextStyle(color: AppColors.textSecondary)));
-        }
-        final requests = snapshot.data!;
-        if (requests.isEmpty) {
-          return const Center(child: Text('No pending requests', style: TextStyle(color: AppColors.textSecondary)));
-        }
-        return ListView.builder(
-          itemCount: requests.length > 3 ? 3 : requests.length,
-          itemBuilder: (_, i) => RequestCard(
-            request: requests[i],
-            onTap: () => Navigator.pushNamed(context, AppRoutes.caretakerRequests),
-          ),
-        );
-      },
+    final propertiesAsync = ref.watch(_caretakerPropertiesProvider);
+    final all = <AccessRequestModel>[];
+    for (final p in propertiesAsync.valueOrNull ?? const <PropertyModel>[]) {
+      final requests = ref.watch(_pendingByPropertyProvider(p.propertyId)).valueOrNull;
+      if (requests != null) {
+        all.addAll(requests);
+      }
+    }
+    all.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+    if (all.isEmpty) {
+      return const Center(child: Text('No pending requests', style: TextStyle(color: AppColors.textSecondary)));
+    }
+    final preview = all.length > 3 ? all.sublist(0, 3) : all;
+    return ListView.builder(
+      itemCount: preview.length,
+      itemBuilder: (_, i) => RequestCard(
+        request: preview[i],
+        onTap: () => Navigator.pushNamed(context, AppRoutes.caretakerRequests),
+      ),
     );
-  }
-}
-
-class _MaintenancePreview extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return const Center(child: Text('No open maintenance tickets', style: TextStyle(color: AppColors.textSecondary)));
   }
 }

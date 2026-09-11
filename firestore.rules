@@ -137,6 +137,46 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /caretaker_applications/{applicationId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.caretakerId
+        || isAdmin()
+        || canManageProperty(resource.data.propertyId)
+      );
+      allow create: if isCaretaker()
+        && request.resource.data.caretakerId == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update: if (
+        isAdmin()
+        || canManageProperty(resource.data.propertyId)
+        || request.auth.uid == resource.data.caretakerId
+      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'status', 'reviewedBy', 'reviewedAt', 'notes'
+      ]);
+      allow delete: if isAdmin();
+    }
+
+    match /property_assignments/{assignmentId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.requesterId
+        || request.auth.uid == resource.data.targetUserId
+        || isAdmin()
+        || canManageProperty(resource.data.propertyId)
+      );
+      allow create: if isOwnerOrManagerOrAdmin()
+        && request.resource.data.requesterId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.type in ['owner_assignment', 'manager_assignment'];
+      allow update: if (
+        isAdmin()
+        || (request.auth.uid == resource.data.requesterId && resource.data.status == 'pending')
+        || (request.auth.uid == resource.data.targetUserId && resource.data.status == 'pending')
+      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'status', 'message', 'reviewedAt'
+      ]);
+      allow delete: if isAdmin();
+    }
+
     match /inspections/{inspectionId} {
       allow read: if isAuthenticated();
       allow create: if isOwnerOrManagerOrAdmin() || isCaretaker();

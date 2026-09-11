@@ -4,12 +4,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/helpers.dart';
 import '../../../data/repositories/request_repository.dart';
+import '../../../data/repositories/property_repository.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../data/models/property_model.dart';
 import '../../../data/models/access_request_model.dart';
 import '../../../widgets/request_card.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading_widget.dart';
 
+final _caretakerPropsProvider = StreamProvider<List<PropertyModel>>((ref) {
+  final uid = ref.watch(currentUserProvider).valueOrNull?.uid ?? '';
+  if (uid.isEmpty) return const Stream.empty();
+  return ref.watch(propertyRepositoryProvider).getPropertiesByCaretaker(uid);
+});
+
+final _pendingByPropertyProvider =
+    StreamProvider.family<List<AccessRequestModel>, String>((ref, propertyId) {
+  return ref.watch(requestRepositoryProvider).getPendingRequestsByProperty(propertyId);
+});
 
 class CaretakerRequestsScreen extends ConsumerWidget {
   const CaretakerRequestsScreen({super.key});
@@ -25,33 +37,73 @@ class CaretakerRequestsScreen extends ConsumerWidget {
   }
 
   Widget _buildBody(BuildContext context, WidgetRef ref) {
-    return StreamBuilder<List<AccessRequestModel>>(
-      stream: ref.watch(requestRepositoryProvider).getAllPendingRequests(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const ShimmerLoading();
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-        final requests = snapshot.data ?? [];
-        if (requests.isEmpty) {
+    return ref.watch(_caretakerPropsProvider).when(
+      loading: () => const ShimmerLoading(),
+      error: (e, _) => Center(child: Text('Error: $e')),
+      data: (properties) {
+        if (properties.isEmpty) {
           return const EmptyStateWidget(
-            icon: Icons.check_circle_outline,
-            title: 'No pending requests',
-            subtitle: 'All requests have been handled',
+            icon: Icons.home_work_outlined,
+            title: 'No assigned properties',
+            subtitle: 'Requests appear here once you are assigned a property',
           );
         }
+        properties.sort((a, b) => a.name.compareTo(b.name));
         return ListView.builder(
-          itemCount: requests.length,
-          itemBuilder: (_, i) => RequestCard(
-            request: requests[i],
-            onTap: () => _showRequestDetail(context, requests[i], ref),
-            onApprove: () => _handleApprove(context, requests[i], ref),
-            onReject: () => _handleReject(context, requests[i], ref),
-          ),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          itemCount: properties.length,
+          itemBuilder: (_, i) => _PropertySection(property: properties[i]),
         );
       },
+    );
+  }
+}
+
+class _PropertySection extends ConsumerWidget {
+  final PropertyModel property;
+  const _PropertySection({required this.property});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final requestsAsync = ref.watch(_pendingByPropertyProvider(property.propertyId));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Text(
+            property.name,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
+        requestsAsync.when(
+          loading: () => const ShimmerLoading(),
+          error: (e, _) => Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text('Error: $e', style: const TextStyle(color: AppColors.error)),
+          ),
+          data: (requests) {
+            if (requests.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text('No pending requests',
+                    style: TextStyle(color: AppColors.textSecondary)),
+              );
+            }
+            return Column(
+              children: [
+                for (final request in requests)
+                  RequestCard(
+                    request: request,
+                    onTap: () => _showRequestDetail(context, request, ref),
+                    onApprove: () => _handleApprove(context, request, ref),
+                    onReject: () => _handleReject(context, request, ref),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 

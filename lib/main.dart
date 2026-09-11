@@ -17,7 +17,9 @@ import 'features/auth/screens/verification_screen.dart';
 import 'features/tenant/screens/tenant_shell.dart';
 import 'features/tenant/screens/tenant_lease_screen.dart';
 import 'features/caretaker/screens/caretaker_shell.dart';
+import 'features/caretaker/screens/caretaker_applications_screen.dart';
 import 'features/owner/screens/owner_shell.dart';
+import 'features/owner/screens/assignment_requests_screen.dart';
 import 'features/admin/screens/admin_shell.dart';
 import 'features/properties/screens/unit_detail_screen.dart';
 import 'features/properties/screens/add_unit_screen.dart';
@@ -113,11 +115,14 @@ class REMSApp extends ConsumerWidget {
           case AppRoutes.caretakerUnits:
             page = const CaretakerShell(initialIndex: 2);
             break;
-          case AppRoutes.caretakerTasks:
+          case AppRoutes.caretakerJobs:
             page = const CaretakerShell(initialIndex: 3);
             break;
-          case AppRoutes.caretakerProfile:
+          case AppRoutes.caretakerTasks:
             page = const CaretakerShell(initialIndex: 4);
+            break;
+          case AppRoutes.caretakerProfile:
+            page = const CaretakerShell(initialIndex: 5);
             break;
           case AppRoutes.ownerHome:
             page = const OwnerShell();
@@ -192,6 +197,12 @@ class REMSApp extends ConsumerWidget {
             break;
           case AppRoutes.wallet:
             page = const WalletScreen();
+            break;
+          case AppRoutes.caretakerApplications:
+            page = const CaretakerApplicationsScreen();
+            break;
+          case AppRoutes.assignmentRequests:
+            page = const AssignmentRequestsScreen();
             break;
           default:
             page = const SplashScreen();

@@ -77,6 +77,8 @@ class FirebaseService {
   CollectionReference get walletsCollection => firestore.collection('wallets');
   CollectionReference get walletTransactionsCollection => firestore.collection('wallet_transactions');
   CollectionReference get rentInvoicesCollection => firestore.collection('rent_invoices');
+  CollectionReference get caretakerApplicationsCollection => firestore.collection('caretaker_applications');
+  CollectionReference get propertyAssignmentsCollection => firestore.collection('property_assignments');
 
   Future<String> uploadFile(String path, String fileName, Uint8List bytes) async {
     final ref = storage.ref().child('$path/$fileName');

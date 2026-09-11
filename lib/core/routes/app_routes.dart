@@ -16,6 +16,7 @@ class AppRoutes {  static const String splash = '/';
   static const String caretakerHome = '/caretaker/home';
   static const String caretakerRequests = '/caretaker/requests';
   static const String caretakerUnits = '/caretaker/units';
+  static const String caretakerJobs = '/caretaker/jobs';
   static const String caretakerTasks = '/caretaker/tasks';
   static const String caretakerProfile = '/caretaker/profile';
 
@@ -50,4 +51,6 @@ class AppRoutes {  static const String splash = '/';
   static const String wallet = '/wallet';
   static const String upgrade = '/upgrade';
   static const String ownerCompare = '/owner/compare';
+  static const String caretakerApplications = '/caretaker/applications';
+  static const String assignmentRequests = '/owner/assignments';
 }
