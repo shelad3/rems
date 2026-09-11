@@ -89,7 +89,7 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
       _amenities.addAll(p.amenities);
       _coverImageUrl = p.coverImageUrl;
       _ownerId = p.ownerId;
-      _caretakerId = p.managerId;
+      _caretakerId = p.caretakerId;
       if (p.startingRent > 0) {
         _startingRentController.text = p.startingRent.toStringAsFixed(0);
       }
@@ -145,9 +145,23 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
             .uploadFile('properties/$propertyId', 'cover.jpg', bytes);
       }
 
-      final ownerId = _isAdmin && _ownerId != null ? _ownerId! : user.uid;
       final startingRent =
           double.tryParse(_startingRentController.text.trim()) ?? 0;
+
+      final String? ownerId;
+      final String? managerId;
+      if (_isAdmin && _ownerId != null) {
+        ownerId = _ownerId;
+      } else if (user.role == 'owner') {
+        ownerId = user.uid;
+      } else {
+        ownerId = null;
+      }
+      if (user.role == 'manager') {
+        managerId = user.uid;
+      } else {
+        managerId = null;
+      }
 
       if (widget.isEdit) {
         await ref.read(propertyRepositoryProvider).updateProperty(propertyId, {
@@ -157,12 +171,11 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
           'description': _descriptionController.text.trim(),
           'propertyType': _propertyType,
           'amenities': _amenities.toList(),
-          'ownerId': ownerId,
+          if (_isAdmin) 'ownerId': _ownerId,
+          if (widget.property?.caretakerId != _caretakerId)
+            'caretakerId': _caretakerId,
           'coverImageUrl': coverUrl,
           'startingRent': startingRent,
-          if (widget.property?.managerId != _caretakerId)
-            'managerId': _caretakerId,
-          'caretakerId': _caretakerId,
         });
         ref.read(auditLogRepositoryProvider).log(
           actorId: user.uid,
@@ -184,7 +197,7 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
       final property = PropertyModel(
         propertyId: propertyId,
         ownerId: ownerId,
-        managerId: _caretakerId,
+        managerId: managerId,
         caretakerId: _caretakerId,
         name: _nameController.text.trim(),
         location: _locationController.text.trim(),
@@ -194,6 +207,8 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
         amenities: _amenities.toList(),
         coverImageUrl: coverUrl,
         startingRent: startingRent,
+        createdBy: user.uid,
+        createdByRole: (_isAdmin && _ownerId != null) ? 'owner' : user.role,
       );
 
       await ref.read(propertyRepositoryProvider).createProperty(property);

@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PropertyModel {
   final String propertyId;
-  final String ownerId;
+  final String? ownerId;
   final String? managerId;
   final String? caretakerId;
   final String name;
@@ -17,10 +17,12 @@ class PropertyModel {
   final int totalUnits;
   final int availableUnits;
   final double startingRent;
+  final String? createdBy;
+  final String? createdByRole;
 
   PropertyModel({
     required this.propertyId,
-    required this.ownerId,
+    this.ownerId,
     this.managerId,
     this.caretakerId,
     required this.name,
@@ -35,6 +37,8 @@ class PropertyModel {
     this.totalUnits = 0,
     this.availableUnits = 0,
     this.startingRent = 0,
+    this.createdBy,
+    this.createdByRole,
   })  : amenities = amenities ?? const [],
         createdAt = createdAt ?? DateTime.now();
 
@@ -55,12 +59,14 @@ class PropertyModel {
         'totalUnits': totalUnits,
         'availableUnits': availableUnits,
         'startingRent': startingRent,
+        'createdBy': createdBy,
+        'createdByRole': createdByRole,
       };
 
   factory PropertyModel.fromMap(Map<String, dynamic> map, String id) {
     return PropertyModel(
       propertyId: id,
-      ownerId: map['ownerId'] ?? '',
+      ownerId: map['ownerId'],
       managerId: map['managerId'],
       caretakerId: map['caretakerId'],
       name: map['name'] ?? '',
@@ -75,6 +81,8 @@ class PropertyModel {
       totalUnits: map['totalUnits'] ?? 0,
       availableUnits: map['availableUnits'] ?? 0,
       startingRent: (map['startingRent'] ?? 0).toDouble(),
+      createdBy: map['createdBy'],
+      createdByRole: map['createdByRole'],
     );
   }
 
@@ -96,6 +104,8 @@ class PropertyModel {
       totalUnits: totalUnits ?? this.totalUnits,
       availableUnits: availableUnits ?? this.availableUnits,
       startingRent: startingRent ?? this.startingRent,
+      createdBy: createdBy,
+      createdByRole: createdByRole,
     );
   }
 }

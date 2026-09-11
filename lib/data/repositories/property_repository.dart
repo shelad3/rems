@@ -33,10 +33,10 @@ class PropertyRepository {
             .toList());
   }
 
-  /// Properties assigned to a caretaker (via managerId/caretakerId).
+  /// Properties assigned to a caretaker (via caretakerId).
   Stream<List<PropertyModel>> getPropertiesByCaretaker(String caretakerId) {
     return _firebase.propertiesCollection
-        .where('managerId', isEqualTo: caretakerId)
+        .where('caretakerId', isEqualTo: caretakerId)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => PropertyModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
@@ -102,10 +102,8 @@ class PropertyRepository {
     await _firebase.unitsCollection.doc(unitId).delete();
   }
 
-  Future<void> assignCaretaker(
-      String propertyId, String? caretakerId) async {
+  Future<void> assignCaretaker(String propertyId, String? caretakerId) async {
     await _firebase.propertiesCollection.doc(propertyId).update({
-      'managerId': caretakerId,
       'caretakerId': caretakerId,
     });
   }

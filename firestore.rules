@@ -6,24 +6,29 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
+    function isOwnRole(role) {
       return isAuthenticated()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+
+    function isAdmin() {
+      return isOwnRole('admin');
     }
 
     function isOwner() {
-      return isAuthenticated()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['owner', 'manager'];
+      return isOwnRole('owner');
+    }
+
+    function isManager() {
+      return isOwnRole('manager');
     }
 
     function isCaretaker() {
-      return isAuthenticated()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'caretaker';
+      return isOwnRole('caretaker');
     }
 
     function isTenant() {
-      return isAuthenticated()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'tenant';
+      return isOwnRole('tenant');
     }
 
     function isApproved() {
@@ -33,6 +38,10 @@ service cloud.firestore {
 
     function isOwnerOrAdmin() {
       return isOwner() || isAdmin();
+    }
+
+    function isOwnerOrManagerOrAdmin() {
+      return isOwner() || isManager() || isAdmin();
     }
 
     function isRegisteredRole() {
@@ -51,14 +60,30 @@ service cloud.firestore {
       ]);
     }
 
-    function isOwnerOfProperty(propertyId) {
+    function isPropertyOwner(propertyId) {
       return isOwner()
         && get(/databases/$(database)/documents/properties/$(propertyId)).data.ownerId == request.auth.uid;
     }
 
-    function isCaretakerOfProperty(propertyId) {
-      return isCaretaker()
+    function isPropertyManager(propertyId) {
+      return isManager()
         && get(/databases/$(database)/documents/properties/$(propertyId)).data.managerId == request.auth.uid;
+    }
+
+    function isPropertyCaretaker(propertyId) {
+      return isCaretaker()
+        && get(/databases/$(database)/documents/properties/$(propertyId)).data.caretakerId == request.auth.uid;
+    }
+
+    function canManageProperty(propertyId) {
+      return isAdmin()
+        || isPropertyOwner(propertyId)
+        || isPropertyManager(propertyId);
+    }
+
+    function canOperateProperty(propertyId) {
+      return canManageProperty(propertyId)
+        || isPropertyCaretaker(propertyId);
     }
 
     match /users/{userId} {
@@ -71,24 +96,24 @@ service cloud.firestore {
 
     match /properties/{propertyId} {
       allow read: if true;
-      allow create: if isOwnerOrAdmin();
-      allow update: if isOwnerOfProperty(propertyId) || isAdmin();
-      allow delete: if isAdmin();
+      allow create: if isOwnerOrManagerOrAdmin();
+      allow update: if canManageProperty(propertyId);
+      allow delete: if isAdmin() || isPropertyOwner(propertyId);
     }
 
     match /units/{unitId} {
       allow read: if true;
-      allow create: if isOwnerOrAdmin();
-      allow update: if isOwnerOfProperty(resource.data.propertyId)
-        || isAdmin()
-        || isCaretakerOfProperty(resource.data.propertyId);
-      allow delete: if isAdmin() || isOwnerOfProperty(resource.data.propertyId);
+      allow create: if canManageProperty(request.resource.data.propertyId);
+      allow update: if canOperateProperty(resource.data.propertyId);
+      allow delete: if isAdmin()
+        || isPropertyOwner(resource.data.propertyId)
+        || isPropertyManager(resource.data.propertyId);
     }
 
     match /buildings/{buildingId} {
       allow read: if true;
-      allow create: if isOwnerOrAdmin();
-      allow update: if isOwnerOrAdmin();
+      allow create: if isOwnerOrManagerOrAdmin();
+      allow update: if isOwnerOrManagerOrAdmin();
       allow delete: if isAdmin();
     }
 
@@ -96,27 +121,33 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         request.auth.uid == resource.data.tenantId
         || isAdmin()
-        || isOwnerOfProperty(resource.data.propertyId)
-        || isCaretakerOfProperty(resource.data.propertyId)
+        || canManageProperty(resource.data.propertyId)
+        || isPropertyCaretaker(resource.data.propertyId)
       );
-      allow create: if isTenant();
-      allow update: if isAdmin()
-        || isOwnerOfProperty(resource.data.propertyId)
-        || isCaretakerOfProperty(resource.data.propertyId);
+      allow create: if isTenant()
+        && request.resource.data.tenantId == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update: if (
+        isAdmin()
+        || canManageProperty(resource.data.propertyId)
+        || isPropertyCaretaker(resource.data.propertyId)
+      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'status', 'reviewedBy', 'reviewedAt', 'notes'
+      ]);
       allow delete: if isAdmin();
     }
 
     match /inspections/{inspectionId} {
       allow read: if isAuthenticated();
-      allow create: if isOwnerOrAdmin() || isCaretaker();
-      allow update: if isOwnerOrAdmin() || isCaretaker();
+      allow create: if isOwnerOrManagerOrAdmin() || isCaretaker();
+      allow update: if isOwnerOrManagerOrAdmin() || isCaretaker();
       allow delete: if isAdmin();
     }
 
     match /meter_readings/{readingId} {
       allow read: if isAuthenticated();
-      allow create: if isOwnerOrAdmin() || isCaretaker();
-      allow update: if isOwnerOrAdmin() || isCaretaker();
+      allow create: if isOwnerOrManagerOrAdmin() || isCaretaker();
+      allow update: if isOwnerOrManagerOrAdmin() || isCaretaker();
       allow delete: if isAdmin();
     }
 
@@ -124,14 +155,14 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         request.auth.uid == resource.data.tenantId
         || isAdmin()
-        || isOwnerOfProperty(resource.data.propertyId)
-        || isCaretakerOfProperty(resource.data.propertyId)
+        || canManageProperty(resource.data.propertyId)
+        || isPropertyCaretaker(resource.data.propertyId)
       );
-      allow create: if isOwnerOrAdmin() || isCaretaker();
+      allow create: if isOwnerOrManagerOrAdmin() || isCaretaker();
       allow update: if request.auth.uid == resource.data.tenantId
         || isAdmin()
-        || isOwnerOfProperty(resource.data.propertyId)
-        || isCaretakerOfProperty(resource.data.propertyId);
+        || canManageProperty(resource.data.propertyId)
+        || isPropertyCaretaker(resource.data.propertyId);
       allow delete: if isAdmin();
     }
 
@@ -139,8 +170,8 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         request.auth.uid == resource.data.tenantId
         || isAdmin()
-        || isOwnerOfProperty(resource.data.propertyId)
-        || isCaretakerOfProperty(resource.data.propertyId)
+        || canManageProperty(resource.data.propertyId)
+        || isPropertyCaretaker(resource.data.propertyId)
       );
       allow create: if isAuthenticated();
       allow update: if isAdmin();
@@ -151,8 +182,8 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update: if isAdmin()
-        || isOwnerOfProperty(resource.data.propertyId)
-        || isCaretakerOfProperty(resource.data.propertyId)
+        || canManageProperty(resource.data.propertyId)
+        || isPropertyCaretaker(resource.data.propertyId)
         || request.auth.uid == resource.data.tenantId;
       allow delete: if isAdmin();
     }
@@ -177,15 +208,15 @@ service cloud.firestore {
 
     match /announcements/{announcementId} {
       allow read: if isAuthenticated();
-      allow create: if isOwnerOrAdmin() || isCaretaker();
-      allow update: if isOwnerOrAdmin();
+      allow create: if isOwnerOrManagerOrAdmin() || isCaretaker();
+      allow update: if isOwnerOrManagerOrAdmin();
       allow delete: if isAdmin();
     }
 
     match /staff/{staffId} {
       allow read: if isAuthenticated();
-      allow create: if isOwnerOrAdmin();
-      allow update: if isOwnerOrAdmin();
+      allow create: if isOwnerOrManagerOrAdmin();
+      allow update: if isOwnerOrManagerOrAdmin();
       allow delete: if isAdmin();
     }
 
@@ -204,17 +235,19 @@ service cloud.firestore {
     }
 
     match /wallets/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated()
+        && (request.auth.uid == userId || isAdmin());
       allow create: if isAuthenticated()
+        && userId == request.auth.uid
         && (!('balance' in request.resource.data) || request.resource.data.balance == 0);
-      allow update: if isAuthenticated();
+      allow update: if request.auth.uid == userId || isAdmin();
       allow delete: if isAdmin();
     }
 
     match /mpesa_requests/{requestId} {
       allow read: if isAuthenticated() && (
         request.auth.uid == resource.data.tenantUid
-        || isOwnerOrAdmin()
+        || isOwnerOrManagerOrAdmin()
       );
       allow create: if request.auth.uid == resource.data.tenantUid;
       allow update: if isAdmin();
@@ -224,11 +257,15 @@ service cloud.firestore {
     match /rent_invoices/{invoiceId} {
       allow read: if isAuthenticated() && (
         request.auth.uid == resource.data.tenantId
-        || isOwnerOrAdmin()
-        || isCaretakerOfProperty(resource.data.propertyId)
+        || isAdmin()
+        || canManageProperty(resource.data.propertyId)
+        || isPropertyCaretaker(resource.data.propertyId)
       );
-      allow create: if request.auth.uid == resource.data.tenantId || isOwnerOrAdmin();
-      allow update: if request.auth.uid == resource.data.tenantId || isOwnerOrAdmin() || isCaretakerOfProperty(resource.data.propertyId);
+      allow create: if request.auth.uid == resource.data.tenantId
+        || canManageProperty(resource.data.propertyId);
+      allow update: if request.auth.uid == resource.data.tenantId
+        || canManageProperty(resource.data.propertyId)
+        || isPropertyCaretaker(resource.data.propertyId);
       allow delete: if isAdmin();
     }
 
@@ -237,7 +274,7 @@ service cloud.firestore {
         request.auth.uid == resource.data.userId
         || isAdmin()
       );
-      allow create: if isAuthenticated();
+      allow create: if request.auth.uid == resource.data.userId;
       allow update: if isAdmin() || request.auth.uid == resource.data.userId;
       allow delete: if isAdmin();
     }
