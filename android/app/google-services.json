@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "933865910240-5h3ufh9l648c46hjv0k4s1i5v6vurnvu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nativecodex.rems",
+            "certificate_hash": "e08438317b836bb2826090ae75fc164bd417a5a0"
+          }
+        },
+        {
           "client_id": "933865910240-s4sn30a53ev15gcnhgffvj7nueguphh4.apps.googleusercontent.com",
           "client_type": 3
         }

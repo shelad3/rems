@@ -60,6 +60,7 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
   final _unitCountController = TextEditingController();
   final _defaultRentController = TextEditingController();
   final _defaultDepositController = TextEditingController();
+  final _startingRentController = TextEditingController();
 
   String _propertyType = 'apartment';
   final Set<String> _amenities = {};
@@ -89,6 +90,9 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
       _coverImageUrl = p.coverImageUrl;
       _ownerId = p.ownerId;
       _caretakerId = p.managerId;
+      if (p.startingRent > 0) {
+        _startingRentController.text = p.startingRent.toStringAsFixed(0);
+      }
     }
   }
 
@@ -101,6 +105,7 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
     _unitCountController.dispose();
     _defaultRentController.dispose();
     _defaultDepositController.dispose();
+    _startingRentController.dispose();
     super.dispose();
   }
 
@@ -141,6 +146,8 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
       }
 
       final ownerId = _isAdmin && _ownerId != null ? _ownerId! : user.uid;
+      final startingRent =
+          double.tryParse(_startingRentController.text.trim()) ?? 0;
 
       if (widget.isEdit) {
         await ref.read(propertyRepositoryProvider).updateProperty(propertyId, {
@@ -152,6 +159,7 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
           'amenities': _amenities.toList(),
           'ownerId': ownerId,
           'coverImageUrl': coverUrl,
+          'startingRent': startingRent,
           if (widget.property?.managerId != _caretakerId)
             'managerId': _caretakerId,
           'caretakerId': _caretakerId,
@@ -185,6 +193,7 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
         propertyType: _propertyType,
         amenities: _amenities.toList(),
         coverImageUrl: coverUrl,
+        startingRent: startingRent,
       );
 
       await ref.read(propertyRepositoryProvider).createProperty(property);

@@ -10,6 +10,7 @@ import 'features/auth/screens/splash_screen.dart';
 import 'features/auth/screens/welcome_screen.dart';
 import 'features/auth/screens/guest_shell.dart';
 import 'features/auth/screens/role_selection_screen.dart';
+import 'features/auth/screens/phone_signup_screen.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/verification_screen.dart';
@@ -77,6 +78,10 @@ class REMSApp extends ConsumerWidget {
           case AppRoutes.register:
             final role = settings.arguments as String?;
             page = RegisterScreen(initialRole: role);
+            break;
+          case AppRoutes.phoneSignup:
+            final role = settings.arguments as String?;
+            page = PhoneSignupScreen(initialRole: role);
             break;
           case AppRoutes.login:
             page = const LoginScreen();

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,10 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 
 const String superAdminEmail = 'sheldonramu8@gmail.com';
+
+/// OAuth client ID for the app's server/backend (from google-services.json).
+const String googleServerClientId =
+    '933865910240-s4sn30a53ev15gcnhgffvj7nueguphh4.apps.googleusercontent.com';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -111,9 +116,16 @@ class AuthService {
 
     final googleUser = await _googleSignIn.authenticate();
     final auth = googleUser.authentication;
-    final credential = GoogleAuthProvider.credential(
-      idToken: auth.idToken,
-    );
+    final idToken = auth.idToken;
+    if (idToken == null || idToken.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'google-id-token-missing',
+        message:
+            'Google did not return an ID token. Check that SHA-1/SHA-256 '
+            'fingerprints are registered for the app in the Firebase console.',
+      );
+    }
+    final credential = GoogleAuthProvider.credential(idToken: idToken);
 
     final userCredential = await _auth.signInWithCredential(credential);
     final user = userCredential.user;
@@ -147,21 +159,44 @@ class AuthService {
     return userCredential;
   }
 
-  Future<void> signInWithPhone({
-    required String phone,
-    required Function(String verificationId, int? forceResendToken) codeSent,
-    required Function(FirebaseAuthException error) verificationFailed,
-  }) async {
+  Future<PhoneAuthResult> signInWithPhone(String phone) async {
+    final completer = Completer<PhoneAuthResult>();
     await _auth.verifyPhoneNumber(
       phoneNumber: phone,
       verificationCompleted: (credential) async {
-        await _auth.signInWithCredential(credential);
+        try {
+          await _auth.signInWithCredential(credential);
+          if (!completer.isCompleted) {
+            completer.complete(const PhoneAuthResult(autoSignedIn: true));
+          }
+        } catch (e) {
+          if (!completer.isCompleted) {
+            completer.complete(PhoneAuthResult(
+              error: e is FirebaseAuthException
+                  ? e.message ?? 'Automatic phone sign-in failed'
+                  : e.toString(),
+            ));
+          }
+        }
       },
-      verificationFailed: verificationFailed,
+      verificationFailed: (e) {
+        if (!completer.isCompleted) {
+          completer.complete(
+            PhoneAuthResult(error: e.message ?? 'Phone verification failed'),
+          );
+        }
+      },
       codeSent: (verificationId, forceResentToken) {
-        codeSent(verificationId, forceResentToken);
+        if (!completer.isCompleted) {
+          completer.complete(PhoneAuthResult(verificationId: verificationId));
+        }
       },
-      codeAutoRetrievalTimeout: (verificationId) {},
+      codeAutoRetrievalTimeout: (_) {},
+    );
+
+    return completer.future.timeout(
+      const Duration(seconds: 45),
+      onTimeout: () => PhoneAuthResult(error: 'Phone verification timed out'),
     );
   }
 
@@ -240,3 +275,15 @@ final currentUserProvider = FutureProvider<UserModel?>((ref) async {
   if (authState.value == null) return null;
   return ref.read(authServiceProvider).getCurrentUserModel();
 });
+
+class PhoneAuthResult {
+  final bool autoSignedIn;
+  final String? verificationId;
+  final String? error;
+
+  const PhoneAuthResult({
+    this.autoSignedIn = false,
+    this.verificationId,
+    this.error,
+  });
+}

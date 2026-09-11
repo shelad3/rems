@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/models/user_model.dart';
 
+enum PhoneAuthStep { codeSent, autoSignedIn, failed }
+
 final authProvider = ChangeNotifierProvider<AuthNotifier>((ref) {
   return AuthNotifier(ref.read(authServiceProvider));
 });
@@ -133,49 +135,41 @@ class AuthNotifier extends ChangeNotifier {
     }
   }
 
-  Future<bool> signInWithPhone(String phone) async {
+  Future<PhoneAuthStep> sendPhoneCode(String phone) async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      String? verificationId;
-      String? failedError;
-
-      await _authService.signInWithPhone(
-        phone: phone,
-        codeSent: (verificationIdValue, _) {
-          verificationId = verificationIdValue;
-        },
-        verificationFailed: (e) {
-          failedError = e.message ?? 'Phone verification failed';
-        },
-      );
-
-      // Wait a short moment for the verifyPhoneNumber flow to settle.
-      await Future.delayed(const Duration(seconds: 1));
-
-      if (verificationId != null) {
-        _pendingVerificationId = verificationId;
+      final result = await _authService.signInWithPhone(phone);
+      if (result.error != null) {
+        _error = result.error;
+        _loading = false;
+        notifyListeners();
+        return PhoneAuthStep.failed;
       }
-
-      if (failedError != null) {
-        _error = failedError;
+      if (result.autoSignedIn) {
+        _pendingVerificationId = null;
+        await loadUser();
+        _loading = false;
+        notifyListeners();
+        return PhoneAuthStep.autoSignedIn;
       }
+      _pendingVerificationId = result.verificationId;
       _loading = false;
       notifyListeners();
-      return verificationId != null;
+      return PhoneAuthStep.codeSent;
     } catch (e) {
       _error = e.toString();
       _loading = false;
       notifyListeners();
-      return false;
+      return PhoneAuthStep.failed;
     }
   }
 
   Future<bool> verifySmsCode(String code) async {
     final verificationId = _pendingVerificationId;
     if (verificationId == null) {
-      _error = 'No verification in progress';
+      _error = 'Verification expired. Request a new code.';
       return false;
     }
     _loading = true;

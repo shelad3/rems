@@ -233,6 +233,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    AppRoutes.phoneSignup,
+                    arguments: _selectedRole,
+                  ),
+                  icon: const Icon(Icons.phone_outlined, size: 18),
+                  label: const Text('Register with Phone instead'),
+                ),
+              ),
             ],
           ),
         ),

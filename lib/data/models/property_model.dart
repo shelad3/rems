@@ -16,6 +16,7 @@ class PropertyModel {
   final DateTime createdAt;
   final int totalUnits;
   final int availableUnits;
+  final double startingRent;
 
   PropertyModel({
     required this.propertyId,
@@ -33,6 +34,7 @@ class PropertyModel {
     DateTime? createdAt,
     this.totalUnits = 0,
     this.availableUnits = 0,
+    this.startingRent = 0,
   })  : amenities = amenities ?? const [],
         createdAt = createdAt ?? DateTime.now();
 
@@ -52,6 +54,7 @@ class PropertyModel {
         'createdAt': Timestamp.fromDate(createdAt),
         'totalUnits': totalUnits,
         'availableUnits': availableUnits,
+        'startingRent': startingRent,
       };
 
   factory PropertyModel.fromMap(Map<String, dynamic> map, String id) {
@@ -71,10 +74,11 @@ class PropertyModel {
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       totalUnits: map['totalUnits'] ?? 0,
       availableUnits: map['availableUnits'] ?? 0,
+      startingRent: (map['startingRent'] ?? 0).toDouble(),
     );
   }
 
-  PropertyModel copyWith({int? totalUnits, int? availableUnits, String? status, String? propertyType, List<String>? amenities, String? ownerId, String? managerId, String? caretakerId}) {
+  PropertyModel copyWith({int? totalUnits, int? availableUnits, String? status, String? propertyType, List<String>? amenities, String? ownerId, String? managerId, String? caretakerId, double? startingRent}) {
     return PropertyModel(
       propertyId: propertyId,
       ownerId: ownerId ?? this.ownerId,
@@ -91,6 +95,7 @@ class PropertyModel {
       createdAt: createdAt,
       totalUnits: totalUnits ?? this.totalUnits,
       availableUnits: availableUnits ?? this.availableUnits,
+      startingRent: startingRent ?? this.startingRent,
     );
   }
 }

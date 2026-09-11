@@ -52,7 +52,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
     final String route;
     final bool isAdmin = user.email == superAdminEmail || user.role == 'admin';
-    if (!user.isVerified && !isAdmin) {
+    if (!user.isVerified && !isAdmin && user.email.isNotEmpty) {
       route = AppRoutes.verification;
     } else {
       route = Navigation.routeForRole(user.role);
@@ -100,12 +100,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (phone == null || phone.isEmpty) return;
     if (!mounted) return;
     setState(() => _phoneLoading = true);
-    final sent = await ref.read(authProvider.notifier).signInWithPhone(phone);
+    final step = await ref.read(authProvider.notifier).sendPhoneCode(phone);
     if (!mounted) return;
     setState(() => _phoneLoading = false);
-    if (!sent) {
+    if (step == PhoneAuthStep.failed) {
       final error = ref.read(authProvider).error;
       Helpers.showSnackBar(context, error ?? 'Failed to send code', isError: true);
+      return;
+    }
+    if (step == PhoneAuthStep.autoSignedIn) {
+      _routeAfterAuth();
       return;
     }
 
