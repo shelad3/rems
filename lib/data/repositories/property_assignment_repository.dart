@@ -37,7 +37,6 @@ class PropertyAssignmentRepository {
       onListen: () {
         subR = _firebase.propertyAssignmentsCollection
             .where('requesterId', isEqualTo: userId)
-            .orderBy('createdAt', descending: true)
             .snapshots()
             .listen(
                 (s) {
@@ -52,7 +51,6 @@ class PropertyAssignmentRepository {
                 });
         subT = _firebase.propertyAssignmentsCollection
             .where('targetUserId', isEqualTo: userId)
-            .orderBy('createdAt', descending: true)
             .snapshots()
             .listen(
                 (s) {
