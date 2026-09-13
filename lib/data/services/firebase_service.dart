@@ -38,6 +38,13 @@ class FirebaseService {
           .timeout(const Duration(seconds: 4));
     } catch (_) {}
 
+    final auth = FirebaseAuth.instance;
+    try {
+      if (auth.currentUser == null) {
+        await auth.setPersistence(Persistence.LOCAL);
+      }
+    } catch (_) {}
+
     _initialized = true;
 
     FirebaseFirestore.instance.settings = const Settings(

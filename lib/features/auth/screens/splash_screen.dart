@@ -40,16 +40,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     }
   }
 
-  Future<void> _routeToDashboard() async {
+  Future<UserModel?> _fetchUserModel() async {
     UserModel? userModel;
-    try {
-      userModel = await ref
-          .read(authServiceProvider)
-          .getCurrentUserModel()
-          .timeout(const Duration(seconds: 4));
-    } catch (_) {
-      userModel = null;
+    for (var attempt = 0; attempt < 3 && userModel == null; attempt++) {
+      try {
+        userModel = await ref
+            .read(authServiceProvider)
+            .getCurrentUserModel()
+            .timeout(const Duration(seconds: 8));
+      } catch (_) {
+        userModel = null;
+      }
+      if (userModel == null && mounted && attempt < 2) {
+        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+      }
     }
+    return userModel;
+  }
+
+  Future<void> _routeToDashboard() async {
+    final userModel = await _fetchUserModel();
     if (!mounted) return;
     if (userModel == null) {
       _navigateTo(AppRoutes.welcome);
