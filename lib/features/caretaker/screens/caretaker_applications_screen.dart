@@ -17,17 +17,7 @@ final _myPropertiesProvider = StreamProvider<List<PropertyModel>>((ref) {
   final uid = ref.watch(currentUserProvider).valueOrNull?.uid ?? '';
   final repo = ref.watch(propertyRepositoryProvider);
   if (uid.isEmpty) return const Stream.empty();
-  return Stream.multi((controller) {
-    final subs = [
-      repo.getPropertiesByOwner(uid).listen(controller.add, onError: controller.addError),
-      repo.getPropertiesByManager(uid).listen(controller.add, onError: controller.addError),
-    ];
-    controller.onCancel = () {
-      for (final s in subs) {
-        s.cancel();
-      }
-    };
-  });
+  return repo.getMyProperties(uid);
 });
 
 final _pendingAppsPropertyProvider =

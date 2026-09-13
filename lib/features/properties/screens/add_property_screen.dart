@@ -127,6 +127,15 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_isAdmin && _ownerId == null) {
+      Helpers.showSnackBar(
+        context,
+        'Select an owner for this property before saving',
+        isError: true,
+      );
+      return;
+    }
+
     final user = ref.read(currentUserProvider).valueOrNull;
     if (user == null) {
       Helpers.showSnackBar(context, 'Please log in to add a property', isError: true);
@@ -152,10 +161,12 @@ class _AddPropertyScreenState extends ConsumerState<AddPropertyScreen> {
 
       final String? ownerId;
       final String? managerId;
-      if (_isAdmin && _ownerId != null) {
-        ownerId = _ownerId;
-      } else if (user.role == 'owner') {
+      if (user.role == 'owner') {
         ownerId = user.uid;
+      } else if (_isAdmin && _ownerId != null) {
+        ownerId = _ownerId;
+      } else if (user.role == 'manager') {
+        ownerId = null;
       } else {
         ownerId = null;
       }

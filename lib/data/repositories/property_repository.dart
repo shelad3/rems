@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/property_model.dart';
@@ -77,6 +78,46 @@ class PropertyRepository {
           ? UnitModel.fromMap(snapshot.data() as Map<String, dynamic>, snapshot.id)
           : null,
     );
+  }
+
+  Stream<List<PropertyModel>> getMyProperties(String uid) {
+    late final StreamController<List<PropertyModel>> controller;
+    List<PropertyModel> owned = [];
+    List<PropertyModel> managed = [];
+    late final StreamSubscription<List<PropertyModel>> subO;
+    late final StreamSubscription<List<PropertyModel>> subM;
+    bool closed = false;
+
+    void merge() {
+      if (closed) return;
+      final map = <String, PropertyModel>{};
+      for (final p in owned) {
+        map[p.propertyId] = p;
+      }
+      for (final p in managed) {
+        map.putIfAbsent(p.propertyId, () => p);
+      }
+      controller.add(map.values.toList());
+    }
+
+    controller = StreamController<List<PropertyModel>>(
+      onListen: () {
+        subO = getPropertiesByOwner(uid).listen(
+          (list) { owned = list; merge(); },
+          onError: (e) { if (!closed) controller.addError(e); },
+        );
+        subM = getPropertiesByManager(uid).listen(
+          (list) { managed = list; merge(); },
+          onError: (e) { if (!closed) controller.addError(e); },
+        );
+      },
+      onCancel: () {
+        closed = true;
+        subO.cancel();
+        subM.cancel();
+      },
+    );
+    return controller.stream;
   }
 
   Stream<List<UnitModel>> streamAllUnits() {

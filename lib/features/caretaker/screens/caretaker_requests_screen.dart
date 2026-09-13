@@ -155,12 +155,12 @@ class _PropertySection extends ConsumerWidget {
     if (confirm != true || !context.mounted) return;
 
     try {
-      await ref.read(leaseRepositoryProvider).approveRequest(
+      await ref.read(leaseRepositoryProvider).approveRequestCaretaker(
             request: request,
             reviewedBy: reviewerId,
           );
       if (context.mounted) {
-        Helpers.showSnackBar(context, 'Tenant approved — lease created');
+        Helpers.showSnackBar(context, 'Request approved — owner will create lease');
       }
     } catch (e) {
       if (context.mounted) {

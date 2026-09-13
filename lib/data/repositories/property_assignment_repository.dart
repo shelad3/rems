@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/property_assignment_model.dart';
 import '../services/firebase_service.dart';
@@ -12,35 +13,66 @@ class PropertyAssignmentRepository {
   }
 
   Stream<List<PropertyAssignmentModel>> streamInvolving(String userId) {
-    return Stream.multi((controller) {
-      final subs = [
-        _firebase.propertyAssignmentsCollection
+    late final StreamController<List<PropertyAssignmentModel>> controller;
+    List<PropertyAssignmentModel> asRequester = [];
+    List<PropertyAssignmentModel> asTarget = [];
+    late final StreamSubscription<dynamic> subR;
+    late final StreamSubscription<dynamic> subT;
+    bool closed = false;
+
+    List<PropertyAssignmentModel> merge() {
+      final map = <String, PropertyAssignmentModel>{};
+      for (final a in asRequester) {
+        map[a.assignmentId] = a;
+      }
+      for (final a in asTarget) {
+        map.putIfAbsent(a.assignmentId, () => a);
+      }
+      final list = map.values.toList()
+        ..sort((x, y) => y.createdAt.compareTo(x.createdAt));
+      return list;
+    }
+
+    controller = StreamController<List<PropertyAssignmentModel>>(
+      onListen: () {
+        subR = _firebase.propertyAssignmentsCollection
             .where('requesterId', isEqualTo: userId)
             .orderBy('createdAt', descending: true)
             .snapshots()
             .listen(
-                (s) => controller.add(s.docs
-                    .map((doc) => PropertyAssignmentModel.fromMap(
-                        doc.data() as Map<String, dynamic>, doc.id))
-                    .toList()),
-                onError: controller.addError),
-        _firebase.propertyAssignmentsCollection
+                (s) {
+                  asRequester = s.docs
+                      .map((doc) => PropertyAssignmentModel.fromMap(
+                          doc.data() as Map<String, dynamic>, doc.id))
+                      .toList();
+                  if (!closed) controller.add(merge());
+                },
+                onError: (e) {
+                  if (!closed) controller.addError(e);
+                });
+        subT = _firebase.propertyAssignmentsCollection
             .where('targetUserId', isEqualTo: userId)
             .orderBy('createdAt', descending: true)
             .snapshots()
             .listen(
-                (s) => controller.add(s.docs
-                    .map((doc) => PropertyAssignmentModel.fromMap(
-                        doc.data() as Map<String, dynamic>, doc.id))
-                    .toList()),
-                onError: controller.addError),
-      ];
-      controller.onCancel = () {
-        for (final sub in subs) {
-          sub.cancel();
-        }
-      };
-    });
+                (s) {
+                  asTarget = s.docs
+                      .map((doc) => PropertyAssignmentModel.fromMap(
+                          doc.data() as Map<String, dynamic>, doc.id))
+                      .toList();
+                  if (!closed) controller.add(merge());
+                },
+                onError: (e) {
+                  if (!closed) controller.addError(e);
+                });
+      },
+      onCancel: () {
+        closed = true;
+        subR.cancel();
+        subT.cancel();
+      },
+    );
+    return controller.stream;
   }
 
   Stream<List<PropertyAssignmentModel>> streamByProperty(String propertyId) {

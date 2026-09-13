@@ -27,7 +27,7 @@ class OwnerMetrics {
 final ownerPropertiesProvider = StreamProvider<List<PropertyModel>>((ref) {
   final uid = ref.watch(currentUserProvider).value?.uid;
   if (uid == null) return const Stream.empty();
-  return ref.watch(propertyRepositoryProvider).getPropertiesByOwner(uid);
+  return ref.watch(propertyRepositoryProvider).getMyProperties(uid);
 });
 
 final ownerAggregatedMetricsProvider = FutureProvider<OwnerMetrics>((ref) async {
@@ -35,7 +35,7 @@ final ownerAggregatedMetricsProvider = FutureProvider<OwnerMetrics>((ref) async 
   if (userId == null) {
     throw StateError('No authenticated user');
   }
-  final properties = await ref.read(propertyRepositoryProvider).getPropertiesByOwner(userId).first;
+  final properties = await ref.read(propertyRepositoryProvider).getMyProperties(userId).first;
 
   double totalIncome = 0;
   int totalUnits = 0;

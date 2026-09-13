@@ -41,6 +41,7 @@ class LeaseRepository {
   }
 
   /// Transactional approve: creates lease, occupies unit, decrements available, flips access request.
+  /// Only callable by owner or manager (writes to users + properties docs).
   Future<void> approveRequest({
     required AccessRequestModel request,
     required String reviewedBy,
@@ -48,6 +49,11 @@ class LeaseRepository {
     await _firebase.firestore.runTransaction((txn) async {
       final reqRef = _firebase.accessRequestsCollection.doc(request.requestId);
       final propRef = _firebase.propertiesCollection.doc(request.propertyId);
+
+      final reqSnap = await txn.get(reqRef);
+      if (!reqSnap.exists) throw Exception('Request not found');
+      final reqData = reqSnap.data() as Map<String, dynamic>;
+      if (reqData['status'] != 'pending') throw Exception('Request already processed');
 
       final propSnap = await txn.get(propRef);
       if (!propSnap.exists) throw Exception('Property not found');
@@ -63,6 +69,7 @@ class LeaseRepository {
         final unitSnap = await txn.get(unitRef);
         if (unitSnap.exists) {
           unit = UnitModel.fromMap(unitSnap.data()! as Map<String, dynamic>, unitSnap.id);
+          if (unit.occupied) throw Exception('Unit is already occupied');
           rentAmount = unit.rentAmount;
           depositAmount = unit.depositAmount;
         }
@@ -108,6 +115,26 @@ class LeaseRepository {
       txn.update(_firebase.usersCollection.doc(request.tenantId), {
         'currentPropertyId': request.propertyId,
         if (request.unitId != null) 'currentUnitId': request.unitId,
+      });
+    });
+  }
+
+  /// Caretaker-only approve: flips request status to approved (no property/user writes).
+  /// Caretaker cannot create leases or update tenant user docs — owner/manager does that.
+  Future<void> approveRequestCaretaker({
+    required AccessRequestModel request,
+    required String reviewedBy,
+  }) async {
+    await _firebase.firestore.runTransaction((txn) async {
+      final reqRef = _firebase.accessRequestsCollection.doc(request.requestId);
+      final snap = await txn.get(reqRef);
+      if (!snap.exists) throw Exception('Request not found');
+      final data = snap.data() as Map<String, dynamic>;
+      if (data['status'] != 'pending') throw Exception('Request already processed');
+      txn.update(reqRef, {
+        'status': 'approved',
+        'reviewedBy': reviewedBy,
+        'reviewedAt': Timestamp.now(),
       });
     });
   }

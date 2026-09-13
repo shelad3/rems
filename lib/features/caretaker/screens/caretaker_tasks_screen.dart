@@ -5,6 +5,7 @@ import '../../../data/models/maintenance_ticket_model.dart';
 import '../../../data/models/property_model.dart';
 import '../../../data/repositories/maintenance_repository.dart';
 import '../../../data/repositories/property_repository.dart';
+import '../../../data/services/auth_service.dart';
 import '../../../features/maintenance/providers/maintenance_provider.dart';
 import '../../../widgets/maintenance_card.dart';
 import '../../../widgets/empty_state.dart';
@@ -36,8 +37,11 @@ class _CaretakerTasksScreenState extends ConsumerState<CaretakerTasksScreen> {
   }
 
   Widget _buildPropertySelector() {
+    final uid = ref.watch(currentUserProvider).valueOrNull?.uid ?? '';
     return StreamBuilder<List<PropertyModel>>(
-      stream: ref.watch(propertyRepositoryProvider).getProperties(),
+      stream: uid.isEmpty
+          ? const Stream.empty()
+          : ref.watch(propertyRepositoryProvider).getPropertiesByCaretaker(uid),
       builder: (context, snapshot) {
         final properties = snapshot.data ?? [];
         return Padding(

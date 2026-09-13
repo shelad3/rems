@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/routes/app_routes.dart';
@@ -13,17 +12,7 @@ final _myPropertiesProvider = StreamProvider.autoDispose.family<List<PropertyMod
   (ref, uid) {
     final repo = ref.watch(propertyRepositoryProvider);
     if (uid.isEmpty) return repo.streamAllProperties();
-    return Stream.multi((controller) {
-      final subs = [
-        repo.getPropertiesByOwner(uid).listen(controller.add, onError: controller.addError),
-        repo.getPropertiesByManager(uid).listen(controller.add, onError: controller.addError),
-      ];
-      controller.onCancel = () {
-        for (final s in subs) {
-          s.cancel();
-        }
-      };
-    });
+    return repo.getMyProperties(uid);
   },
 );
 
